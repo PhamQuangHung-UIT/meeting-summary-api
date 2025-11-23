@@ -12,7 +12,7 @@ if not GEMINI_API_KEY:
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-def transcribe_gemini(audio_bytes: bytes, file_extension: str):
+def transcribe(audio_bytes: bytes, file_extension: str):
     prompt = '''
     Transcribe the provided audio file verbatim, identifying different speakers based on voice changes (label them as SPEAKER_1, SPEAKER_2, etc., starting from SPEAKER_1 for the first voice). For each spoken segment, provide:
     - The start time and end time of the segment in the format "HHhMMmSSs" (e.g., "00h00m00s").
