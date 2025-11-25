@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional, Any, Dict, List
 from datetime import datetime
-from uuid import UUID
+
 
 # ============================
 # SYSTEM_CONFIG
@@ -61,14 +61,14 @@ class UserUpdate(BaseModel):
     storage_used_mb: Optional[float] = None
 
 class User(UserBase):
-    user_id: UUID
+    user_id: str
     created_at: Optional[datetime] = None
 
 # ============================
 # AUDIT_LOGS
 # ============================
 class AuditLogBase(BaseModel):
-    user_id: Optional[UUID] = None
+    user_id: Optional[str] = None
     action_type: Optional[str] = None
     ip_address: Optional[str] = None
     details: Optional[str] = None
@@ -84,27 +84,27 @@ class AuditLog(AuditLogBase):
 # FOLDERS
 # ============================
 class FolderBase(BaseModel):
-    user_id: Optional[UUID] = None
+    user_id: Optional[str] = None
     name: Optional[str] = None
-    parent_folder_id: Optional[UUID] = None
+    parent_folder_id: Optional[str] = None
 
 class FolderCreate(FolderBase):
     pass
 
 class FolderUpdate(BaseModel):
     name: Optional[str] = None
-    parent_folder_id: Optional[UUID] = None
+    parent_folder_id: Optional[str] = None
 
 class Folder(FolderBase):
-    folder_id: UUID
+    folder_id: str
     created_at: Optional[datetime] = None
 
 # ============================
 # RECORDINGS
 # ============================
 class RecordingBase(BaseModel):
-    user_id: Optional[UUID] = None
-    folder_id: Optional[UUID] = None
+    user_id: Optional[str] = None
+    folder_id: Optional[str] = None
     title: Optional[str] = None
     file_path: Optional[str] = None
     duration_seconds: Optional[float] = None
@@ -115,13 +115,13 @@ class RecordingCreate(RecordingBase):
     pass
 
 class RecordingUpdate(BaseModel):
-    folder_id: Optional[UUID] = None
+    folder_id: Optional[str] = None
     title: Optional[str] = None
     status: Optional[str] = None
     deleted_at: Optional[datetime] = None
 
 class Recording(RecordingBase):
-    recording_id: UUID
+    recording_id: str
     created_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
 
@@ -129,7 +129,7 @@ class Recording(RecordingBase):
 # TRANSCRIPTS
 # ============================
 class TranscriptBase(BaseModel):
-    recording_id: Optional[UUID] = None
+    recording_id: Optional[str] = None
     language: Optional[str] = None
     transcript_segments: Optional[Any] = None
 
@@ -141,14 +141,14 @@ class TranscriptUpdate(BaseModel):
     transcript_segments: Optional[Any] = None
 
 class Transcript(TranscriptBase):
-    transcript_id: UUID
+    transcript_id: str
     created_at: Optional[datetime] = None
 
 # ============================
 # SUMMARIES
 # ============================
 class SummaryBase(BaseModel):
-    recording_id: Optional[UUID] = None
+    recording_id: Optional[str] = None
     type: Optional[str] = None
     content_structure: Optional[Any] = None
 
@@ -160,5 +160,5 @@ class SummaryUpdate(BaseModel):
     content_structure: Optional[Any] = None
 
 class Summary(SummaryBase):
-    summary_id: UUID
+    summary_id: str
     created_at: Optional[datetime] = None

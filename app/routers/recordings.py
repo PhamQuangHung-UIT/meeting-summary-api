@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 from typing import List
-from uuid import UUID
+
 from app.utils.database import supabase
 from app import schemas
 
@@ -12,8 +12,8 @@ def get_all_recordings():
     return response.data
 
 @router.get("/{recording_id}", response_model=schemas.Recording)
-def get_recording(recording_id: UUID):
-    response = supabase.table("recordings").select("*").eq("recording_id", str(recording_id)).execute()
+def get_recording(recording_id: str):
+    response = supabase.table("recordings").select("*").eq("recording_id", recording_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Recording not found")
     return response.data[0]
@@ -21,23 +21,21 @@ def get_recording(recording_id: UUID):
 @router.post("/", response_model=schemas.Recording, status_code=status.HTTP_201_CREATED)
 def create_recording(recording: schemas.RecordingCreate):
     data = recording.model_dump(exclude_unset=True)
-    if data.get('user_id'): data['user_id'] = str(data['user_id'])
-    if data.get('folder_id'): data['folder_id'] = str(data['folder_id'])
+
 
     response = supabase.table("recordings").insert(data).execute()
     return response.data[0]
 
 @router.put("/{recording_id}", response_model=schemas.Recording)
-def update_recording(recording_id: UUID, recording: schemas.RecordingUpdate):
+def update_recording(recording_id: str, recording: schemas.RecordingUpdate):
     data = recording.model_dump(exclude_unset=True)
-    if data.get('folder_id'): data['folder_id'] = str(data['folder_id'])
 
-    response = supabase.table("recordings").update(data).eq("recording_id", str(recording_id)).execute()
+    response = supabase.table("recordings").update(data).eq("recording_id", recording_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Recording not found")
     return response.data[0]
 
 @router.delete("/{recording_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_recording(recording_id: UUID):
-    supabase.table("recordings").delete().eq("recording_id", str(recording_id)).execute()
+def delete_recording(recording_id: str):
+    supabase.table("recordings").delete().eq("recording_id", recording_id).execute()
     return None

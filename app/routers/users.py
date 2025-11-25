@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 from typing import List
-from uuid import UUID
+
 from app.utils.database import supabase
 from app import schemas
 
@@ -12,8 +12,8 @@ def get_all_users():
     return response.data
 
 @router.get("/{user_id}", response_model=schemas.User)
-def get_user(user_id: UUID):
-    response = supabase.table("users").select("*").eq("user_id", str(user_id)).execute()
+def get_user(user_id: str):
+    response = supabase.table("users").select("*").eq("user_id", user_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="User not found")
     return response.data[0]
@@ -24,13 +24,13 @@ def create_user(user: schemas.UserCreate):
     return response.data[0]
 
 @router.put("/{user_id}", response_model=schemas.User)
-def update_user(user_id: UUID, user: schemas.UserUpdate):
-    response = supabase.table("users").update(user.model_dump(exclude_unset=True)).eq("user_id", str(user_id)).execute()
+def update_user(user_id: str, user: schemas.UserUpdate):
+    response = supabase.table("users").update(user.model_dump(exclude_unset=True)).eq("user_id", user_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="User not found")
     return response.data[0]
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(user_id: UUID):
-    supabase.table("users").delete().eq("user_id", str(user_id)).execute()
+def delete_user(user_id: str):
+    supabase.table("users").delete().eq("user_id", user_id).execute()
     return None
