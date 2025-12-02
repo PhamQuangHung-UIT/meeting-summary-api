@@ -10,7 +10,7 @@ router = APIRouter(prefix="/transcripts", tags=["Transcripts"])
 def get_all_transcripts():
     return TranscriptService.get_all_transcripts()
 
-@router.get("/{transcript_id}", response_model=schemas.Transcript)
+@router.get("/{transcript_id}", response_model=schemas.TranscriptDetail)
 def get_transcript(transcript_id: str):
     transcript = TranscriptService.get_transcript_by_id(transcript_id)
     if not transcript:

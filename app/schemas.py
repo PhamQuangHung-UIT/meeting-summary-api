@@ -231,6 +231,9 @@ class Transcript(TranscriptBase):
     transcript_id: str
     created_at: Optional[datetime] = None
 
+class TranscriptDetail(Transcript):
+    segments: List["TranscriptSegment"] = []
+
 # ============================
 # TRANSCRIPT SEGMENTS
 # ============================

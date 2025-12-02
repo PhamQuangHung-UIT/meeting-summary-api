@@ -9,11 +9,18 @@ class TranscriptService:
         return response.data
 
     @staticmethod
-    def get_transcript_by_id(transcript_id: str) -> Optional[schemas.Transcript]:
+    def get_transcript_by_id(transcript_id: str) -> Optional[schemas.TranscriptDetail]:
         response = supabase.table("transcripts").select("*").eq("transcript_id", transcript_id).execute()
-        if response.data:
-            return response.data[0]
-        return None
+        if not response.data:
+            return None
+            
+        transcript_data = response.data[0]
+        
+        # Fetch segments
+        segments_response = supabase.table("transcript_segments").select("*").eq("transcript_id", transcript_id).order("sequence").execute()
+        segments_data = segments_response.data
+        
+        return schemas.TranscriptDetail(**transcript_data, segments=segments_data)
 
     @staticmethod
     def create_transcript(transcript: schemas.TranscriptCreate) -> schemas.Transcript:
