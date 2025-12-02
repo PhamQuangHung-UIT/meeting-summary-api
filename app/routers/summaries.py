@@ -21,7 +21,7 @@ def get_summary(summary_id: str):
 def create_summary(summary: schemas.SummaryCreate):
     return SummaryService.create_summary(summary)
 
-@router.put("/{summary_id}", response_model=schemas.Summary)
+@router.patch("/{summary_id}", response_model=schemas.Summary)
 def update_summary(summary_id: str, summary: schemas.SummaryUpdate):
     updated_summary = SummaryService.update_summary(summary_id, summary)
     if not updated_summary:

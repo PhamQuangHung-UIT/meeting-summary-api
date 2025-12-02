@@ -35,7 +35,22 @@ class SummaryService:
 
     @staticmethod
     def update_summary(summary_id: str, summary: schemas.SummaryUpdate) -> Optional[schemas.Summary]:
+        # 1. Get existing summary to find recording_id
+        # Note: get_summary_by_id returns a dict from supabase, despite the type hint
+        existing_summary = SummaryService.get_summary_by_id(summary_id)
+        if not existing_summary:
+            return None
+        
+        recording_id = existing_summary['recording_id']
+        
+        # 2. Handle is_latest logic
+        if summary.is_latest:
+             supabase.table("summaries").update({"is_latest": False}).eq("recording_id", recording_id).execute()
+
+        # 3. Prepare update data
         data = summary.model_dump(mode='json', exclude_unset=True)
+        
+        # 4. Update
         response = supabase.table("summaries").update(data).eq("summary_id", summary_id).execute()
         if response.data:
             return response.data[0]
