@@ -21,7 +21,7 @@ def get_transcript(transcript_id: str):
 def create_transcript(transcript: schemas.TranscriptCreate):
     return TranscriptService.create_transcript(transcript)
 
-@router.put("/{transcript_id}", response_model=schemas.Transcript)
+@router.patch("/{transcript_id}", response_model=schemas.Transcript)
 def update_transcript(transcript_id: str, transcript: schemas.TranscriptUpdate):
     updated_transcript = TranscriptService.update_transcript(transcript_id, transcript)
     if not updated_transcript:

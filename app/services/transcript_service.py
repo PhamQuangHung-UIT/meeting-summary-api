@@ -30,6 +30,17 @@ class TranscriptService:
 
     @staticmethod
     def update_transcript(transcript_id: str, transcript: schemas.TranscriptUpdate) -> Optional[schemas.Transcript]:
+        # If setting to active, we need to deactivate others
+        if transcript.is_active is True:
+            # Get recording_id of this transcript
+            res = supabase.table("transcripts").select("recording_id").eq("transcript_id", transcript_id).execute()
+            if res.data:
+                recording_id = res.data[0]['recording_id']
+                # Deactivate all transcripts for this recording
+                supabase.table("transcripts").update({"is_active": False}).eq("recording_id", recording_id).execute()
+            else:
+                return None  # Transcript not found
+
         data = transcript.model_dump(mode='json', exclude_unset=True)
         response = supabase.table("transcripts").update(data).eq("transcript_id", transcript_id).execute()
         if response.data:
