@@ -32,3 +32,15 @@ class TranscriptService:
     @staticmethod
     def delete_transcript(transcript_id: str) -> None:
         supabase.table("transcripts").delete().eq("transcript_id", transcript_id).execute()
+
+    @staticmethod
+    def get_transcripts_by_recording_id(recording_id: str, latest: bool = False) -> List[schemas.Transcript]:
+        query = supabase.table("transcripts").select("*").eq("recording_id", recording_id)
+        if latest:
+            query = query.eq("is_active", True)
+        
+        # Order by version_no descending to show latest first (optional but good UX)
+        query = query.order("version_no", desc=True)
+        
+        response = query.execute()
+        return response.data
