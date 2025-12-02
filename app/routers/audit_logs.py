@@ -19,7 +19,7 @@ def get_audit_log(log_id: int):
 
 @router.post("/", response_model=schemas.AuditLog, status_code=status.HTTP_201_CREATED)
 def create_audit_log(log: schemas.AuditLogCreate):
-    data = log.model_dump(exclude_unset=True)
+    data = log.model_dump(mode='json', exclude_unset=True)
 
         
     response = supabase.table("audit_logs").insert(data).execute()

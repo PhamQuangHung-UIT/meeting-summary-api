@@ -12,7 +12,11 @@ from app.routers import (
     recording_speakers,
     transcripts,
     transcript_segments,
-    summaries
+    summaries,
+    ai_usage_logs,
+    markers,
+    export_jobs,
+    recording_tags
 )
 
 
@@ -30,6 +34,10 @@ app.include_router(recording_speakers.router)
 app.include_router(transcripts.router)
 app.include_router(transcript_segments.router)
 app.include_router(summaries.router)
+app.include_router(ai_usage_logs.router)
+app.include_router(markers.router)
+app.include_router(export_jobs.router)
+app.include_router(recording_tags.router)
 
 
 @app.get("/", summary="Health check")

@@ -20,12 +20,12 @@ def get_user(user_id: str):
 
 @router.post("/", response_model=schemas.User, status_code=status.HTTP_201_CREATED)
 def create_user(user: schemas.UserCreate):
-    response = supabase.table("users").insert(user.model_dump(exclude_unset=True)).execute()
+    response = supabase.table("users").insert(user.model_dump(mode='json', exclude_unset=True)).execute()
     return response.data[0]
 
 @router.put("/{user_id}", response_model=schemas.User)
 def update_user(user_id: str, user: schemas.UserUpdate):
-    response = supabase.table("users").update(user.model_dump(exclude_unset=True)).eq("user_id", user_id).execute()
+    response = supabase.table("users").update(user.model_dump(mode='json', exclude_unset=True)).eq("user_id", user_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="User not found")
     return response.data[0]

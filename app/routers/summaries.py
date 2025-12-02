@@ -20,7 +20,7 @@ def get_summary(summary_id: str):
 
 @router.post("/", response_model=schemas.Summary, status_code=status.HTTP_201_CREATED)
 def create_summary(summary: schemas.SummaryCreate):
-    data = summary.model_dump(exclude_unset=True)
+    data = summary.model_dump(mode='json', exclude_unset=True)
 
 
     response = supabase.table("summaries").insert(data).execute()
@@ -28,7 +28,7 @@ def create_summary(summary: schemas.SummaryCreate):
 
 @router.put("/{summary_id}", response_model=schemas.Summary)
 def update_summary(summary_id: str, summary: schemas.SummaryUpdate):
-    response = supabase.table("summaries").update(summary.model_dump(exclude_unset=True)).eq("summary_id", summary_id).execute()
+    response = supabase.table("summaries").update(summary.model_dump(mode='json', exclude_unset=True)).eq("summary_id", summary_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Summary not found")
     return response.data[0]

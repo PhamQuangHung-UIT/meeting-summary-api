@@ -19,12 +19,12 @@ def get_tier(tier_id: int):
 
 @router.post("/", response_model=schemas.Tier, status_code=status.HTTP_201_CREATED)
 def create_tier(tier: schemas.TierCreate):
-    response = supabase.table("tiers").insert(tier.model_dump(exclude_unset=True)).execute()
+    response = supabase.table("tiers").insert(tier.model_dump(mode='json', exclude_unset=True)).execute()
     return response.data[0]
 
 @router.put("/{tier_id}", response_model=schemas.Tier)
 def update_tier(tier_id: int, tier: schemas.TierUpdate):
-    response = supabase.table("tiers").update(tier.model_dump(exclude_unset=True)).eq("tier_id", tier_id).execute()
+    response = supabase.table("tiers").update(tier.model_dump(mode='json', exclude_unset=True)).eq("tier_id", tier_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Tier not found")
     return response.data[0]

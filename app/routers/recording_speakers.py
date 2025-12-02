@@ -13,14 +13,14 @@ def get_recording_speakers(recording_id: str):
 
 @router.post("/{recording_id}/speakers", response_model=schemas.RecordingSpeaker, status_code=status.HTTP_201_CREATED)
 def create_recording_speaker(recording_id: str, speaker: schemas.RecordingSpeakerCreate):
-    data = speaker.model_dump(exclude_unset=True)
+    data = speaker.model_dump(mode='json', exclude_unset=True)
     data["recording_id"] = recording_id
     response = supabase.table("recording_speakers").insert(data).execute()
     return response.data[0]
 
 @router.put("/speakers/{speaker_id}", response_model=schemas.RecordingSpeaker)
 def update_recording_speaker(speaker_id: int, speaker: schemas.RecordingSpeakerUpdate):
-    response = supabase.table("recording_speakers").update(speaker.model_dump(exclude_unset=True)).eq("id", speaker_id).execute()
+    response = supabase.table("recording_speakers").update(speaker.model_dump(mode='json', exclude_unset=True)).eq("id", speaker_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Speaker not found")
     return response.data[0]

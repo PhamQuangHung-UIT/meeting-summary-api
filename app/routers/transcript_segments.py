@@ -13,14 +13,14 @@ def get_transcript_segments(transcript_id: str):
 
 @router.post("/{transcript_id}/segments", response_model=schemas.TranscriptSegment, status_code=status.HTTP_201_CREATED)
 def create_transcript_segment(transcript_id: str, segment: schemas.TranscriptSegmentCreate):
-    data = segment.model_dump(exclude_unset=True)
+    data = segment.model_dump(mode='json', exclude_unset=True)
     data["transcript_id"] = transcript_id
     response = supabase.table("transcript_segments").insert(data).execute()
     return response.data[0]
 
 @router.put("/segments/{segment_id}", response_model=schemas.TranscriptSegment)
 def update_transcript_segment(segment_id: int, segment: schemas.TranscriptSegmentUpdate):
-    response = supabase.table("transcript_segments").update(segment.model_dump(exclude_unset=True)).eq("segment_id", segment_id).execute()
+    response = supabase.table("transcript_segments").update(segment.model_dump(mode='json', exclude_unset=True)).eq("segment_id", segment_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Segment not found")
     return response.data[0]

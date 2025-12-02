@@ -19,12 +19,12 @@ def get_system_config(config_key: str):
 
 @router.post("/", response_model=schemas.SystemConfig, status_code=status.HTTP_201_CREATED)
 def create_system_config(config: schemas.SystemConfigCreate):
-    response = supabase.table("system_config").insert(config.model_dump(exclude_unset=True)).execute()
+    response = supabase.table("system_config").insert(config.model_dump(mode='json', exclude_unset=True)).execute()
     return response.data[0]
 
 @router.put("/{config_key}", response_model=schemas.SystemConfig)
 def update_system_config(config_key: str, config: schemas.SystemConfigUpdate):
-    response = supabase.table("system_config").update(config.model_dump(exclude_unset=True)).eq("config_key", config_key).execute()
+    response = supabase.table("system_config").update(config.model_dump(mode='json', exclude_unset=True)).eq("config_key", config_key).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="System config not found")
     return response.data[0]

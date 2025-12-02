@@ -20,7 +20,7 @@ def get_folder(folder_id: str):
 
 @router.post("/", response_model=schemas.Folder, status_code=status.HTTP_201_CREATED)
 def create_folder(folder: schemas.FolderCreate):
-    data = folder.model_dump(exclude_unset=True)
+    data = folder.model_dump(mode='json', exclude_unset=True)
 
     
     response = supabase.table("folders").insert(data).execute()
@@ -28,7 +28,7 @@ def create_folder(folder: schemas.FolderCreate):
 
 @router.put("/{folder_id}", response_model=schemas.Folder)
 def update_folder(folder_id: str, folder: schemas.FolderUpdate):
-    data = folder.model_dump(exclude_unset=True)
+    data = folder.model_dump(mode='json', exclude_unset=True)
 
     response = supabase.table("folders").update(data).eq("folder_id", folder_id).execute()
     if not response.data:
