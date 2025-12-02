@@ -16,13 +16,13 @@ class TranscriptSegmentService:
         return response.data[0]
 
     @staticmethod
-    def update_transcript_segment(segment_id: int, segment: schemas.TranscriptSegmentUpdate) -> Optional[schemas.TranscriptSegment]:
+    def update_transcript_segment(transcript_id: str, segment_id: int, segment: schemas.TranscriptSegmentUpdate) -> Optional[schemas.TranscriptSegment]:
         data = segment.model_dump(mode='json', exclude_unset=True)
-        response = supabase.table("transcript_segments").update(data).eq("segment_id", segment_id).execute()
+        response = supabase.table("transcript_segments").update(data).eq("transcript_id", transcript_id).eq("segment_id", segment_id).execute()
         if response.data:
             return response.data[0]
         return None
 
     @staticmethod
-    def delete_transcript_segment(segment_id: int) -> None:
-        supabase.table("transcript_segments").delete().eq("segment_id", segment_id).execute()
+    def delete_transcript_segment(transcript_id: str, segment_id: int) -> None:
+        supabase.table("transcript_segments").delete().eq("transcript_id", transcript_id).eq("segment_id", segment_id).execute()
