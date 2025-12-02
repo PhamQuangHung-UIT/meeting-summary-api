@@ -16,6 +16,18 @@ class SummaryService:
         return None
 
     @staticmethod
+    def get_summaries_by_recording_id(recording_id: str, latest: bool = False) -> List[schemas.Summary]:
+        query = supabase.table("summaries").select("*").eq("recording_id", recording_id)
+        if latest:
+            query = query.eq("is_latest", True)
+        
+        # Order by version_no descending
+        query = query.order("version_no", desc=True)
+        
+        response = query.execute()
+        return response.data
+
+    @staticmethod
     def create_summary(summary: schemas.SummaryCreate) -> schemas.Summary:
         data = summary.model_dump(mode='json', exclude_unset=True)
         response = supabase.table("summaries").insert(data).execute()

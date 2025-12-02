@@ -62,3 +62,7 @@ def generate_summary(recording_id: str, request: schemas.SummaryRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/{recording_id}/summaries", response_model=List[schemas.Summary])
+def get_recording_summaries(recording_id: str, latest: bool = False):
+    return SummaryService.get_summaries_by_recording_id(recording_id, latest)
+
