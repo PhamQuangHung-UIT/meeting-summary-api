@@ -9,7 +9,9 @@ from app.routers import (
     tiers,
     folders,
     recordings,
+    recording_speakers,
     transcripts,
+    transcript_segments,
     summaries
 )
 
@@ -24,7 +26,9 @@ app.include_router(users.router)
 app.include_router(tiers.router)
 app.include_router(folders.router)
 app.include_router(recordings.router)
+app.include_router(recording_speakers.router)
 app.include_router(transcripts.router)
+app.include_router(transcript_segments.router)
 app.include_router(summaries.router)
 
 
