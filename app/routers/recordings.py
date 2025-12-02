@@ -1,39 +1,35 @@
 from fastapi import APIRouter, HTTPException, status
 from typing import List
 
-from app.utils.database import supabase
 from app import schemas
+from app.services.recording_service import RecordingService
 
 router = APIRouter(prefix="/recordings", tags=["Recordings"])
 
 @router.get("/", response_model=List[schemas.Recording])
 def get_all_recordings():
-    response = supabase.table("recordings").select("*").execute()
-    return response.data
+    return RecordingService.get_all_recordings()
 
 @router.get("/{recording_id}", response_model=schemas.Recording)
 def get_recording(recording_id: str):
-    response = supabase.table("recordings").select("*").eq("recording_id", recording_id).execute()
-    if not response.data:
+    recording = RecordingService.get_recording_by_id(recording_id)
+    if not recording:
         raise HTTPException(status_code=404, detail="Recording not found")
-    return response.data[0]
+    return recording
 
 @router.post("/", response_model=schemas.Recording, status_code=status.HTTP_201_CREATED)
 def create_recording(recording: schemas.RecordingCreate):
-    data = recording.model_dump(mode='json', exclude_unset=True)
-    response = supabase.table("recordings").insert(data).execute()
-    return response.data[0]
+    return RecordingService.create_recording(recording)
 
 @router.put("/{recording_id}", response_model=schemas.Recording)
 def update_recording(recording_id: str, recording: schemas.RecordingUpdate):
-    data = recording.model_dump(mode='json', exclude_unset=True)
-    response = supabase.table("recordings").update(data).eq("recording_id", recording_id).execute()
-    if not response.data:
+    updated_recording = RecordingService.update_recording(recording_id, recording)
+    if not updated_recording:
         raise HTTPException(status_code=404, detail="Recording not found")
-    return response.data[0]
+    return updated_recording
 
 @router.delete("/{recording_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_recording(recording_id: str):
-    supabase.table("recordings").delete().eq("recording_id", recording_id).execute()
+    RecordingService.delete_recording(recording_id)
     return None
 

@@ -1,35 +1,33 @@
 from fastapi import APIRouter, HTTPException, status
 from typing import List
-from app.utils.database import supabase
 from app import schemas
+from app.services.tier_service import TierService
 
 router = APIRouter(prefix="/tiers", tags=["Tiers"])
 
 @router.get("/", response_model=List[schemas.Tier])
 def get_all_tiers():
-    response = supabase.table("tiers").select("*").execute()
-    return response.data
+    return TierService.get_all_tiers()
 
 @router.get("/{tier_id}", response_model=schemas.Tier)
 def get_tier(tier_id: int):
-    response = supabase.table("tiers").select("*").eq("tier_id", tier_id).execute()
-    if not response.data:
+    tier = TierService.get_tier_by_id(tier_id)
+    if not tier:
         raise HTTPException(status_code=404, detail="Tier not found")
-    return response.data[0]
+    return tier
 
 @router.post("/", response_model=schemas.Tier, status_code=status.HTTP_201_CREATED)
 def create_tier(tier: schemas.TierCreate):
-    response = supabase.table("tiers").insert(tier.model_dump(mode='json', exclude_unset=True)).execute()
-    return response.data[0]
+    return TierService.create_tier(tier)
 
 @router.put("/{tier_id}", response_model=schemas.Tier)
 def update_tier(tier_id: int, tier: schemas.TierUpdate):
-    response = supabase.table("tiers").update(tier.model_dump(mode='json', exclude_unset=True)).eq("tier_id", tier_id).execute()
-    if not response.data:
+    updated_tier = TierService.update_tier(tier_id, tier)
+    if not updated_tier:
         raise HTTPException(status_code=404, detail="Tier not found")
-    return response.data[0]
+    return updated_tier
 
 @router.delete("/{tier_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_tier(tier_id: int):
-    supabase.table("tiers").delete().eq("tier_id", tier_id).execute()
+    TierService.delete_tier(tier_id)
     return None

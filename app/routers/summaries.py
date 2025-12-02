@@ -1,39 +1,34 @@
 from fastapi import APIRouter, HTTPException, status
 from typing import List
 
-from app.utils.database import supabase
 from app import schemas
+from app.services.summary_service import SummaryService
 
 router = APIRouter(prefix="/summaries", tags=["Summaries"])
 
 @router.get("/", response_model=List[schemas.Summary])
 def get_all_summaries():
-    response = supabase.table("summaries").select("*").execute()
-    return response.data
+    return SummaryService.get_all_summaries()
 
 @router.get("/{summary_id}", response_model=schemas.Summary)
 def get_summary(summary_id: str):
-    response = supabase.table("summaries").select("*").eq("summary_id", summary_id).execute()
-    if not response.data:
+    summary = SummaryService.get_summary_by_id(summary_id)
+    if not summary:
         raise HTTPException(status_code=404, detail="Summary not found")
-    return response.data[0]
+    return summary
 
 @router.post("/", response_model=schemas.Summary, status_code=status.HTTP_201_CREATED)
 def create_summary(summary: schemas.SummaryCreate):
-    data = summary.model_dump(mode='json', exclude_unset=True)
-
-
-    response = supabase.table("summaries").insert(data).execute()
-    return response.data[0]
+    return SummaryService.create_summary(summary)
 
 @router.put("/{summary_id}", response_model=schemas.Summary)
 def update_summary(summary_id: str, summary: schemas.SummaryUpdate):
-    response = supabase.table("summaries").update(summary.model_dump(mode='json', exclude_unset=True)).eq("summary_id", summary_id).execute()
-    if not response.data:
+    updated_summary = SummaryService.update_summary(summary_id, summary)
+    if not updated_summary:
         raise HTTPException(status_code=404, detail="Summary not found")
-    return response.data[0]
+    return updated_summary
 
 @router.delete("/{summary_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_summary(summary_id: str):
-    supabase.table("summaries").delete().eq("summary_id", summary_id).execute()
+    SummaryService.delete_summary(summary_id)
     return None

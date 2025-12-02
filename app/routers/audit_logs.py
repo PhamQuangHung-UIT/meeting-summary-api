@@ -1,31 +1,26 @@
 from fastapi import APIRouter, HTTPException, status
 from typing import List
-from app.utils.database import supabase
 from app import schemas
+from app.services.audit_log_service import AuditLogService
 
 router = APIRouter(prefix="/audit-logs", tags=["Audit Logs"])
 
 @router.get("/", response_model=List[schemas.AuditLog])
 def get_all_audit_logs():
-    response = supabase.table("audit_logs").select("*").execute()
-    return response.data
+    return AuditLogService.get_all_audit_logs()
 
 @router.get("/{log_id}", response_model=schemas.AuditLog)
 def get_audit_log(log_id: int):
-    response = supabase.table("audit_logs").select("*").eq("log_id", log_id).execute()
-    if not response.data:
+    log = AuditLogService.get_audit_log_by_id(log_id)
+    if not log:
         raise HTTPException(status_code=404, detail="Audit log not found")
-    return response.data[0]
+    return log
 
 @router.post("/", response_model=schemas.AuditLog, status_code=status.HTTP_201_CREATED)
 def create_audit_log(log: schemas.AuditLogCreate):
-    data = log.model_dump(mode='json', exclude_unset=True)
-
-        
-    response = supabase.table("audit_logs").insert(data).execute()
-    return response.data[0]
+    return AuditLogService.create_audit_log(log)
 
 @router.delete("/{log_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_audit_log(log_id: int):
-    supabase.table("audit_logs").delete().eq("log_id", log_id).execute()
+    AuditLogService.delete_audit_log(log_id)
     return None

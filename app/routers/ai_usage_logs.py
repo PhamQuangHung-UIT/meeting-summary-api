@@ -1,28 +1,25 @@
 from fastapi import APIRouter, HTTPException, status
 from typing import List
 
-from app.utils.database import supabase
 from app import schemas
+from app.services.ai_usage_log_service import AiUsageLogService
 
 router = APIRouter(prefix="/ai_usage_logs", tags=["AI Usage Logs"])
 
 @router.get("/", response_model=List[schemas.AiUsageLog])
 def get_all_ai_usage_logs():
-    response = supabase.table("ai_usage_logs").select("*").execute()
-    return response.data
+    return AiUsageLogService.get_all_ai_usage_logs()
 
 @router.get("/{usage_id}", response_model=schemas.AiUsageLog)
 def get_ai_usage_log(usage_id: int):
-    response = supabase.table("ai_usage_logs").select("*").eq("usage_id", usage_id).execute()
-    if not response.data:
+    log = AiUsageLogService.get_ai_usage_log_by_id(usage_id)
+    if not log:
         raise HTTPException(status_code=404, detail="AI Usage Log not found")
-    return response.data[0]
+    return log
 
 @router.post("/", response_model=schemas.AiUsageLog, status_code=status.HTTP_201_CREATED)
 def create_ai_usage_log(log: schemas.AiUsageLogCreate):
-    data = log.model_dump(mode='json', exclude_unset=True)
-    response = supabase.table("ai_usage_logs").insert(data).execute()
-    return response.data[0]
+    return AiUsageLogService.create_ai_usage_log(log)
 
 # Usually logs are not updated or deleted, but for completeness I'll add them if needed. 
 # The user asked for CRUD, so I will add them but maybe logs shouldn't be mutable. 
@@ -32,5 +29,5 @@ def create_ai_usage_log(log: schemas.AiUsageLogCreate):
 
 @router.delete("/{usage_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_ai_usage_log(usage_id: int):
-    supabase.table("ai_usage_logs").delete().eq("usage_id", usage_id).execute()
+    AiUsageLogService.delete_ai_usage_log(usage_id)
     return None
