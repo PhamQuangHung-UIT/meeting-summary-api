@@ -33,3 +33,17 @@ def delete_recording(recording_id: str):
     RecordingService.delete_recording(recording_id)
     return None
 
+@router.post("/{recording_id}/transcribe", response_model=schemas.Transcript)
+def transcribe_recording(recording_id: str):
+    try:
+        transcript = RecordingService.transcribe_recording(recording_id)
+        if not transcript:
+             raise HTTPException(status_code=404, detail="Recording not found")
+        return transcript
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
