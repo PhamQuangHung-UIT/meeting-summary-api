@@ -109,7 +109,8 @@ class UserBase(BaseModel):
     email_verified: Optional[bool] = False
 
 class UserCreate(UserBase):
-    password_hash: str
+    pass
+
 
 class UserUpdate(BaseModel):
     email: Optional[str] = None
@@ -119,7 +120,7 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = None
     storage_used_mb: Optional[float] = None
     email_verified: Optional[bool] = None
-    password_hash: Optional[str] = None
+
 
 class User(UserBase):
     user_id: str
