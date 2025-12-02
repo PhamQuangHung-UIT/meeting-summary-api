@@ -4,6 +4,7 @@ from typing import List
 from app import schemas
 from app.services.recording_service import RecordingService
 from app.services.transcript_service import TranscriptService
+from app.services.summary_service import SummaryService
 
 router = APIRouter(prefix="/recordings", tags=["Recordings"])
 
@@ -51,4 +52,13 @@ def transcribe_recording(recording_id: str):
 @router.get("/{recording_id}/transcripts", response_model=List[schemas.Transcript])
 def get_recording_transcripts(recording_id: str, latest: bool = False):
     return TranscriptService.get_transcripts_by_recording_id(recording_id, latest)
+
+@router.post("/{recording_id}/summarize", response_model=schemas.Summary)
+def generate_summary(recording_id: str, request: schemas.SummaryRequest):
+    try:
+        return SummaryService.generate_summary(recording_id, request.summary_style)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 

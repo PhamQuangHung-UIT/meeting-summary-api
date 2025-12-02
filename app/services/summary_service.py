@@ -32,3 +32,52 @@ class SummaryService:
     @staticmethod
     def delete_summary(summary_id: str) -> None:
         supabase.table("summaries").delete().eq("summary_id", summary_id).execute()
+
+    @staticmethod
+    def generate_summary(recording_id: str, summary_style: str = "MEETING") -> schemas.Summary:
+        from app.services.transcript_service import TranscriptService
+        from app.utils.transcript_utils import clean_transcript_for_summary
+        from app.utils.summarizer import generate_summary_gemini
+        
+        # 1. Get active transcript
+        active_transcripts = TranscriptService.get_transcripts_by_recording_id(recording_id, latest=True)
+        if not active_transcripts:
+            raise ValueError("No active transcript found for this recording.")
+        
+        active_transcript = active_transcripts[0]
+        
+        # 2. Get transcript details (with segments)
+        transcript_detail = TranscriptService.get_transcript_by_id(active_transcript['transcript_id'])
+        if not transcript_detail:
+             raise ValueError("Failed to retrieve transcript details.")
+
+        # 3. Prepare text for AI
+        cleaned_text = clean_transcript_for_summary(transcript_detail.segments)
+        
+        # 4. Call Gemini
+        summary_content = generate_summary_gemini(cleaned_text, summary_style)
+        
+        # 5. Handle Versioning
+        # Get current max version
+        res = supabase.table("summaries").select("version_no").eq("recording_id", recording_id).order("version_no", desc=True).limit(1).execute()
+        current_version = 0
+        if res.data:
+            current_version = res.data[0]['version_no']
+        
+        new_version = current_version + 1
+        
+        # Set old summaries to is_latest=False
+        supabase.table("summaries").update({"is_latest": False}).eq("recording_id", recording_id).execute()
+        
+        # 6. Insert new summary
+        new_summary_data = {
+            "recording_id": recording_id,
+            "version_no": new_version,
+            "type": "AI_GENERATED",
+            "summary_style": summary_style,
+            "content_structure": summary_content,
+            "is_latest": True,          
+        }
+        
+        response = supabase.table("summaries").insert(new_summary_data).execute()
+        return response.data[0]
