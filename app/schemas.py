@@ -231,6 +231,9 @@ class Transcript(TranscriptBase):
     transcript_id: str
     created_at: Optional[datetime] = None
 
+class TranscriptDetail(Transcript):
+    segments: List["TranscriptSegment"] = []
+
 # ============================
 # TRANSCRIPT SEGMENTS
 # ============================
@@ -303,6 +306,9 @@ class SummaryUpdate(BaseModel):
 class Summary(SummaryBase):
     summary_id: str
     created_at: Optional[datetime] = None
+
+class SummaryRequest(BaseModel):
+    summary_style: Optional[str] = "MEETING"
 
 # ============================
 # AI_USAGE_LOGS

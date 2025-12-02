@@ -9,11 +9,18 @@ class TranscriptService:
         return response.data
 
     @staticmethod
-    def get_transcript_by_id(transcript_id: str) -> Optional[schemas.Transcript]:
+    def get_transcript_by_id(transcript_id: str) -> Optional[schemas.TranscriptDetail]:
         response = supabase.table("transcripts").select("*").eq("transcript_id", transcript_id).execute()
-        if response.data:
-            return response.data[0]
-        return None
+        if not response.data:
+            return None
+            
+        transcript_data = response.data[0]
+        
+        # Fetch segments
+        segments_response = supabase.table("transcript_segments").select("*").eq("transcript_id", transcript_id).order("sequence").execute()
+        segments_data = segments_response.data
+        
+        return schemas.TranscriptDetail(**transcript_data, segments=segments_data)
 
     @staticmethod
     def create_transcript(transcript: schemas.TranscriptCreate) -> schemas.Transcript:
@@ -23,6 +30,17 @@ class TranscriptService:
 
     @staticmethod
     def update_transcript(transcript_id: str, transcript: schemas.TranscriptUpdate) -> Optional[schemas.Transcript]:
+        # If setting to active, we need to deactivate others
+        if transcript.is_active is True:
+            # Get recording_id of this transcript
+            res = supabase.table("transcripts").select("recording_id").eq("transcript_id", transcript_id).execute()
+            if res.data:
+                recording_id = res.data[0]['recording_id']
+                # Deactivate all transcripts for this recording
+                supabase.table("transcripts").update({"is_active": False}).eq("recording_id", recording_id).execute()
+            else:
+                return None  # Transcript not found
+
         data = transcript.model_dump(mode='json', exclude_unset=True)
         response = supabase.table("transcripts").update(data).eq("transcript_id", transcript_id).execute()
         if response.data:
@@ -32,3 +50,15 @@ class TranscriptService:
     @staticmethod
     def delete_transcript(transcript_id: str) -> None:
         supabase.table("transcripts").delete().eq("transcript_id", transcript_id).execute()
+
+    @staticmethod
+    def get_transcripts_by_recording_id(recording_id: str, latest: bool = False) -> List[schemas.Transcript]:
+        query = supabase.table("transcripts").select("*").eq("recording_id", recording_id)
+        if latest:
+            query = query.eq("is_active", True)
+        
+        # Order by version_no descending to show latest first (optional but good UX)
+        query = query.order("version_no", desc=True)
+        
+        response = query.execute()
+        return response.data
