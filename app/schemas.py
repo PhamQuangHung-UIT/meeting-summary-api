@@ -122,6 +122,12 @@ class UserUpdate(BaseModel):
     email_verified: Optional[bool] = None
 
 
+class UserAdminUpdate(BaseModel):
+    tier_id: Optional[int] = None
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
+
+
 class User(UserBase):
     user_id: str
     last_login_at: Optional[datetime] = None
@@ -147,6 +153,9 @@ class AuditLogCreate(AuditLogBase):
 class AuditLog(AuditLogBase):
     log_id: int
     created_at: Optional[datetime] = None
+
+class AuditLogWithUser(AuditLog):
+    user_email: Optional[str] = None
 
 # ============================
 # FOLDERS

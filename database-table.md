@@ -18,17 +18,8 @@ CREATE TYPE audit_status AS ENUM ('SUCCESS', 'FAILED');
 -- CREATE TABLES
 -- =============================================
 
--- 1. SYSTEM_CONFIG
-CREATE TABLE system_config (
-    config_key VARCHAR(255) PRIMARY KEY,
-    config_value TEXT NOT NULL,
-    description TEXT,
-    config_group VARCHAR(100),
-    is_sensitive BOOLEAN DEFAULT FALSE,
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
 
--- 2. TIERS
+-- 1. TIERS
 CREATE TABLE tiers (
     tier_id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -42,7 +33,7 @@ CREATE TABLE tiers (
     price_monthly DECIMAL(10, 2) DEFAULT 0
 );
 
--- 3. USERS
+-- 2. USERS
 CREATE TABLE users (
     user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -57,7 +48,7 @@ CREATE TABLE users (
     deleted_at TIMESTAMPTZ
 );
 
--- 4. AUDIT_LOGS
+-- 3. AUDIT_LOGS
 CREATE TABLE audit_logs (
     log_id BIGSERIAL PRIMARY KEY,
     user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
@@ -71,7 +62,7 @@ CREATE TABLE audit_logs (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. FOLDERS
+-- 4. FOLDERS
 CREATE TABLE folders (
     folder_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
@@ -82,7 +73,7 @@ CREATE TABLE folders (
     deleted_at TIMESTAMPTZ
 );
 
--- 6. RECORDINGS
+-- 5. RECORDINGS
 CREATE TABLE recordings (
     recording_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
@@ -101,7 +92,7 @@ CREATE TABLE recordings (
     deleted_at TIMESTAMPTZ
 );
 
--- 7. TRANSCRIPTS
+-- 6. TRANSCRIPTS
 CREATE TABLE transcripts (
     transcript_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     recording_id UUID NOT NULL REFERENCES recordings(recording_id) ON DELETE CASCADE,
@@ -114,7 +105,7 @@ CREATE TABLE transcripts (
     UNIQUE(recording_id, version_no)
 );
 
--- 8. TRANSCRIPT_SEGMENTS
+-- 7. TRANSCRIPT_SEGMENTS
 CREATE TABLE transcript_segments (
     segment_id BIGSERIAL PRIMARY KEY,
     transcript_id UUID NOT NULL REFERENCES transcripts(transcript_id) ON DELETE CASCADE,
@@ -127,7 +118,7 @@ CREATE TABLE transcript_segments (
     is_user_edited BOOLEAN DEFAULT FALSE
 );
 
--- 9. RECORDING_SPEAKERS
+-- 8. RECORDING_SPEAKERS
 CREATE TABLE recording_speakers (
     id BIGSERIAL PRIMARY KEY,
     recording_id UUID NOT NULL REFERENCES recordings(recording_id) ON DELETE CASCADE,
@@ -137,7 +128,7 @@ CREATE TABLE recording_speakers (
     UNIQUE(recording_id, speaker_label)
 );
 
--- 10. SUMMARIES
+-- 9. SUMMARIES
 CREATE TABLE summaries (
     summary_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     recording_id UUID NOT NULL REFERENCES recordings(recording_id) ON DELETE CASCADE,
@@ -151,7 +142,7 @@ CREATE TABLE summaries (
     UNIQUE(recording_id, version_no)
 );
 
--- 11. AI_USAGE_LOGS
+-- 10. AI_USAGE_LOGS
 CREATE TABLE ai_usage_logs (
     usage_id BIGSERIAL PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
@@ -162,7 +153,7 @@ CREATE TABLE ai_usage_logs (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 12. MARKERS
+-- 11. MARKERS
 CREATE TABLE markers (
     marker_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     recording_id UUID NOT NULL REFERENCES recordings(recording_id) ON DELETE CASCADE,
@@ -172,7 +163,7 @@ CREATE TABLE markers (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 13. EXPORT_JOBS
+-- 12. EXPORT_JOBS
 CREATE TABLE export_jobs (
     export_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
@@ -184,7 +175,7 @@ CREATE TABLE export_jobs (
     completed_at TIMESTAMPTZ
 );
 
--- 14. RECORDING_TAGS
+-- 13. RECORDING_TAGS
 CREATE TABLE recording_tags (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     recording_id UUID NOT NULL REFERENCES recordings(recording_id) ON DELETE CASCADE,
