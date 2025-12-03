@@ -12,6 +12,11 @@ class RecordingService:
         return response.data
 
     @staticmethod
+    def get_recordings_by_user_id(user_id: str) -> List[schemas.Recording]:
+        response = supabase.table("recordings").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+        return response.data
+
+    @staticmethod
     def get_recording_by_id(recording_id: str) -> Optional[schemas.Recording]:
         response = supabase.table("recordings").select("*").eq("recording_id", recording_id).execute()
         if response.data:

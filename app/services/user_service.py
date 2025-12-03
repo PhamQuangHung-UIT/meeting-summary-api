@@ -4,8 +4,21 @@ from typing import List, Optional
 
 class UserService:
     @staticmethod
-    def get_all_users() -> List[schemas.User]:
-        response = supabase.table("users").select("*").execute()
+    def get_all_users(
+        email: Optional[str] = None, 
+        tier_id: Optional[int] = None, 
+        is_active: Optional[bool] = None
+    ) -> List[schemas.User]:
+        query = supabase.table("users").select("*")
+        
+        if email:
+            query = query.ilike("email", f"%{email}%")
+        if tier_id is not None:
+            query = query.eq("tier_id", tier_id)
+        if is_active is not None:
+            query = query.eq("is_active", is_active)
+            
+        response = query.execute()
         return response.data
 
     @staticmethod
