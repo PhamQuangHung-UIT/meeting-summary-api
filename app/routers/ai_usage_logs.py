@@ -21,12 +21,6 @@ def get_ai_usage_log(usage_id: int):
 def create_ai_usage_log(log: schemas.AiUsageLogCreate):
     return AiUsageLogService.create_ai_usage_log(log)
 
-# Usually logs are not updated or deleted, but for completeness I'll add them if needed. 
-# The user asked for CRUD, so I will add them but maybe logs shouldn't be mutable. 
-# Given the prompt "sửa lại các api crud", I will assume standard CRUD is expected unless logic dictates otherwise.
-# However, for logs, update/delete is rare. I'll skip update/delete for logs to be safe, or just implement them.
-# Let's implement them to be fully compliant with "CRUD".
-
 @router.delete("/{usage_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_ai_usage_log(usage_id: int):
     AiUsageLogService.delete_ai_usage_log(usage_id)
