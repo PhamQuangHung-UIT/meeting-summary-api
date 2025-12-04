@@ -1,6 +1,7 @@
 from app.utils.database import supabase
 from app import schemas
 from typing import List, Optional
+from app.services.audit_log_service import AuditLogService
 
 class TranscriptSegmentService:
     @staticmethod
@@ -20,6 +21,19 @@ class TranscriptSegmentService:
         data = segment.model_dump(mode='json', exclude_unset=True)
         response = supabase.table("transcript_segments").update(data).eq("transcript_id", transcript_id).eq("segment_id", segment_id).execute()
         if response.data:
+            # Create audit log
+            try:
+                audit_log = schemas.AuditLogCreate(
+                    action_type="UPDATE_TRANSCRIPT_SEGMENT",
+                    resource_type="TRANSCRIPT_SEGMENT",
+                    resource_id=str(segment_id),
+                    status=schemas.AuditStatus.SUCCESS,
+                    details=f"Updated segment {segment_id} in transcript {transcript_id}"
+                )
+                AuditLogService.create_audit_log(audit_log)
+            except Exception as e:
+                print(f"Error creating audit log: {e}")
+
             return response.data[0]
         return None
 

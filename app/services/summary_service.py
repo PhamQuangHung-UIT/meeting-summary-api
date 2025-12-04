@@ -1,6 +1,7 @@
 from app.utils.database import supabase
 from app import schemas
 from typing import List, Optional
+from app.services.audit_log_service import AuditLogService
 
 class SummaryService:
     @staticmethod
@@ -72,6 +73,8 @@ class SummaryService:
             raise ValueError("No active transcript found for this recording.")
         
         active_transcript = active_transcripts[0]
+
+
         
         # 2. Get transcript details (with segments)
         transcript_detail = TranscriptService.get_transcript_by_id(active_transcript['transcript_id'])
@@ -107,4 +110,29 @@ class SummaryService:
         }
         
         response = supabase.table("summaries").insert(new_summary_data).execute()
-        return response.data[0]
+        new_summary = response.data[0]
+
+        # 7. Log AI Usage
+        try:
+            ai_usage_log = {
+                "recording_id": recording_id,
+                "action_type": "SUMMARIZE"
+            }
+            supabase.table("ai_usage_logs").insert(ai_usage_log).execute()
+        except Exception as e:
+            print(f"Error creating AI usage log: {e}")
+
+        # 8. Log Audit
+        try:
+            audit_log = schemas.AuditLogCreate(
+                action_type="GENERATE_SUMMARY",
+                resource_type="SUMMARY",
+                resource_id=new_summary['summary_id'],
+                status=schemas.AuditStatus.SUCCESS,
+                details=f"Generated summary for recording {recording_id}"
+            )
+            AuditLogService.create_audit_log(audit_log)
+        except Exception as e:
+            print(f"Error creating audit log: {e}")
+
+        return new_summary

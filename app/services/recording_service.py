@@ -127,4 +127,12 @@ class RecordingService:
         if new_speakers:
             supabase.table("recording_speakers").insert(new_speakers).execute()
 
+        # 9. Insert into AI_USAGE_LOGS
+        ai_usage_log = {
+            "user_id": recording['user_id'],
+            "recording_id": recording_id,
+            "action_type": "TRANSCRIBE"
+        }
+        supabase.table("ai_usage_logs").insert(ai_usage_log).execute()
+
         return new_transcript
