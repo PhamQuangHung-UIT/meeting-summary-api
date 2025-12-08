@@ -1,3 +1,4 @@
+from typing import List
 from fastapi import APIRouter, HTTPException, status
 from app.utils.database import supabase
 from pydantic import BaseModel
