@@ -36,9 +36,10 @@ app.include_router(transcripts.router)
 app.include_router(transcript_segments.router)
 app.include_router(summaries.router)
 app.include_router(ai_usage_logs.router)
-app.include_router(markers.router)
-app.include_router(export_jobs.router)
-app.include_router(recording_tags.router)
+app.include_router(markers.router)  # Now uses /recordings/{id}/markers
+app.include_router(recording_tags.router)  # Now uses /recordings/{id}/tags
+app.include_router(export_jobs.router)  # Now uses /recordings/{id}/export
+
 app.include_router(admin.router)
 
 
