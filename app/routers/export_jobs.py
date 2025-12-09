@@ -1,24 +1,25 @@
-from fastapi import APIRouter, HTTPException, status, Query
-from typing import List, Optional
+from fastapi import APIRouter, HTTPException, status, BackgroundTasks
+from typing import List
 from pydantic import BaseModel
 
 from app import schemas
 from app.services.export_job_service import ExportJobService
+from app.services.recording_service import RecordingService
 
-router = APIRouter(tags=["Export Jobs"])
-
-
-class ExportCreateRequest(BaseModel):
-    export_type: str  # e.g., "TRANSCRIPT_PDF", "SUMMARY_DOCX", "FULL_ZIP"
+router = APIRouter(prefix="/recordings", tags=["Export Jobs"])
 
 
-# POST /recordings/:id/export - Create export job for a recording
-@router.post("/recordings/{recording_id}/export", response_model=schemas.ExportJob, status_code=status.HTTP_201_CREATED)
-def create_recording_export(recording_id: str, request: ExportCreateRequest):
-    """Create an export job for a recording"""
-    from app.services.recording_service import RecordingService
+class ExportRequest(BaseModel):
+    export_type: str  # "TRANSCRIPT_PDF", "TRANSCRIPT_DOCX", "SUMMARY_PDF", "SUMMARY_DOCX", "FULL_ZIP"
 
-    # Validate recording exists
+
+@router.post("/{recording_id}/export", response_model=schemas.ExportJob, status_code=status.HTTP_201_CREATED)
+def create_export_job(recording_id: str, request: ExportRequest, background_tasks: BackgroundTasks):
+    """
+    Create an export job for a recording.
+    Export types: TRANSCRIPT_PDF, TRANSCRIPT_DOCX, SUMMARY_PDF, SUMMARY_DOCX, FULL_ZIP
+    """
+    # Verify recording exists
     recording = RecordingService.get_recording_by_id(recording_id)
     if not recording:
         raise HTTPException(status_code=404, detail="Recording not found")
@@ -28,92 +29,102 @@ def create_recording_export(recording_id: str, request: ExportCreateRequest):
     if request.export_type not in valid_types:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid export type. Must be one of: {', '.join(valid_types)}"
+            detail=f"Invalid export_type. Must be one of: {', '.join(valid_types)}"
         )
 
+    # Check if recording is processed
+    if recording['status'] != 'PROCESSED':
+        raise HTTPException(
+            status_code=400,
+            detail="Recording must be in PROCESSED status to export"
+        )
+
+    # Check if transcript/summary exists based on export type
+    if request.export_type.startswith("TRANSCRIPT"):
+        from app.services.transcript_service import TranscriptService
+        transcripts = TranscriptService.get_transcripts_by_recording_id(recording_id, latest=True)
+        if not transcripts:
+            raise HTTPException(
+                status_code=400,
+                detail="No transcript available for this recording. Please transcribe first."
+            )
+
+    if request.export_type.startswith("SUMMARY"):
+        from app.services.summary_service import SummaryService
+        summaries = SummaryService.get_summaries_by_recording_id(recording_id, latest=True)
+        if not summaries:
+            raise HTTPException(
+                status_code=400,
+                detail="No summary available for this recording. Please generate summary first."
+            )
+
     # Create export job
-    export_job_create = schemas.ExportJobCreate(
+    job_data = schemas.ExportJobCreate(
         user_id=recording['user_id'],
         recording_id=recording_id,
         export_type=request.export_type,
         status=schemas.ExportStatus.PENDING
     )
 
-    export_job = ExportJobService.create_export_job(export_job_create)
+    job = ExportJobService.create_export_job(job_data)
 
-    # TODO: Trigger background worker/edge function to process the export
-    # This would typically be done via a task queue (Celery, Redis Queue, etc.)
-    # or by triggering a Supabase Edge Function
-    # For now, the job is created with PENDING status
-
-    return export_job
-
-
-# GET /export-jobs/:id - Get export job status
-@router.get("/export-jobs/{export_id}", response_model=schemas.ExportJob)
-def get_export_job_status(export_id: str):
-    """Get the status of an export job, with download link if completed"""
-    job = ExportJobService.get_export_job_by_id(export_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Export Job not found")
-
-    # If job is DONE and has a file_path, generate signed URL
-    if job['status'] == 'DONE' and job.get('file_path'):
-        from app.utils.database import supabase
-        try:
-            # Generate signed URL valid for 1 hour
-            signed_url = supabase.storage.from_("exports").create_signed_url(
-                job['file_path'],
-                3600  # 1 hour
-            )
-            job['download_url'] = signed_url['signedURL']
-        except Exception as e:
-            print(f"Error generating signed URL: {e}")
-
-    return job
-
-
-# Legacy endpoints for backward compatibility
-@router.get("/export_jobs", response_model=List[schemas.ExportJob])
-def get_all_export_jobs(
-        user_id: Optional[str] = Query(None, description="Filter by user ID"),
-        recording_id: Optional[str] = Query(None, description="Filter by recording ID"),
-        status: Optional[str] = Query(None, description="Filter by status")
-):
-    """Get all export jobs with optional filters"""
-    return ExportJobService.get_all_export_jobs(
-        user_id=user_id,
-        recording_id=recording_id,
-        status=status
+    # Add background task to process export
+    background_tasks.add_task(
+        ExportJobService.process_export_job,
+        job['export_id']
     )
 
-
-@router.get("/export_jobs/{export_id}", response_model=schemas.ExportJob)
-def get_export_job(export_id: str):
-    """Legacy endpoint - use /export-jobs/:id instead"""
-    job = ExportJobService.get_export_job_by_id(export_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Export Job not found")
     return job
 
 
-@router.post("/export_jobs", response_model=schemas.ExportJob, status_code=status.HTTP_201_CREATED)
-def create_export_job_direct(job: schemas.ExportJobCreate):
-    """Create export job directly (legacy endpoint)"""
-    return ExportJobService.create_export_job(job)
+@router.get("/{recording_id}/exports", response_model=List[schemas.ExportJob])
+def get_recording_exports(recording_id: str):
+    """Get all export jobs for a specific recording"""
+    recording = RecordingService.get_recording_by_id(recording_id)
+    if not recording:
+        raise HTTPException(status_code=404, detail="Recording not found")
+
+    return ExportJobService.get_exports_by_recording_id(recording_id)
 
 
-@router.put("/export_jobs/{export_id}", response_model=schemas.ExportJob)
-def update_export_job(export_id: str, job: schemas.ExportJobUpdate):
-    """Update export job status (used by background workers)"""
-    updated_job = ExportJobService.update_export_job(export_id, job)
-    if not updated_job:
+# Export job management endpoints
+@router.get("/export-jobs/{export_id}", response_model=schemas.ExportJobDetail, tags=["Export Jobs"])
+def get_export_job(export_id: str):
+    """Get export job status and download URL if completed"""
+    job = ExportJobService.get_export_job_by_id(export_id)
+    if not job:
         raise HTTPException(status_code=404, detail="Export Job not found")
-    return updated_job
+
+    # If job is done, get signed URL for download
+    download_url = None
+    if job['status'] == 'DONE' and job['file_path']:
+        download_url = ExportJobService.get_download_url(job['file_path'])
+
+    return {
+        **job,
+        "download_url": download_url
+    }
 
 
-@router.delete("/export_jobs/{export_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.get("/export-jobs", response_model=List[schemas.ExportJob], tags=["Export Jobs"])
+def get_all_export_jobs():
+    """Get all export jobs (admin)"""
+    return ExportJobService.get_all_export_jobs()
+
+
+@router.delete("/export-jobs/{export_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Export Jobs"])
 def delete_export_job(export_id: str):
-    """Delete an export job"""
+    """Delete an export job and its file"""
+    job = ExportJobService.get_export_job_by_id(export_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Export Job not found")
+
+    # Delete file from storage if exists
+    if job['file_path']:
+        try:
+            ExportJobService.delete_export_file(job['file_path'])
+        except Exception as e:
+            print(f"Error deleting export file: {e}")
+
     ExportJobService.delete_export_job(export_id)
     return None
