@@ -35,11 +35,26 @@ class ExportJobService:
         return None
 
     @staticmethod
-    def create_export_job(job: schemas.ExportJobCreate) -> schemas.ExportJob:
-        data = job.model_dump(mode='json', exclude_unset=True)
-        response = supabase.table("export_jobs").insert(data).execute()
+    def create_export_job(user_id: str, recording_id: str, export_type: str) -> schemas.ExportJob:
+        # Validate recording ownership? Logic says "Insert EXPORT_JOBS".
+        # Assume caller validates or we do it here.
+        # Let's do a quick ownership check to be safe.
+        rec = supabase.table("recordings").select("user_id").eq("recording_id", recording_id).single().execute()
+        if not rec.data:
+             raise ValueError("Recording not found")
+        if rec.data['user_id'] != user_id:
+             raise ValueError("Not authorized")
+
+        new_job = {
+            "user_id": user_id,
+            "recording_id": recording_id,
+            "export_type": export_type,
+            "status": "PENDING"
+        }
+        response = supabase.table("export_jobs").insert(new_job).execute()
         return response.data[0]
 
+    # update and delete can remain valid for internal/admin use or if user cancels.
     @staticmethod
     def update_export_job(export_id: str, job: schemas.ExportJobUpdate) -> Optional[schemas.ExportJob]:
         data = job.model_dump(mode='json', exclude_unset=True)

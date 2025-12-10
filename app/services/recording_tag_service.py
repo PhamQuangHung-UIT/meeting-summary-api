@@ -5,8 +5,8 @@ from typing import List, Optional
 
 class RecordingTagService:
     @staticmethod
-    def get_all_recording_tags() -> List[schemas.RecordingTag]:
-        response = supabase.table("recording_tags").select("*").execute()
+    def get_tags_by_recording_id(recording_id: str) -> List[schemas.RecordingTag]:
+        response = supabase.table("recording_tags").select("*").eq("recording_id", recording_id).execute()
         return response.data
 
     @staticmethod

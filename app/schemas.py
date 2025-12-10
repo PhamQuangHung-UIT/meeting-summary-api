@@ -161,13 +161,13 @@ class AuditLogWithUser(AuditLog):
 # FOLDERS
 # ============================
 class FolderBase(BaseModel):
-    user_id: str
     name: str
     parent_folder_id: Optional[str] = None
     is_deleted: Optional[bool] = False
 
-class FolderCreate(FolderBase):
-    pass
+class FolderCreate(BaseModel):
+    name: str
+    parent_folder_id: Optional[str] = None
 
 class FolderUpdate(BaseModel):
     name: Optional[str] = None
@@ -176,6 +176,7 @@ class FolderUpdate(BaseModel):
 
 class Folder(FolderBase):
     folder_id: str
+    user_id: str
     created_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
 
@@ -199,6 +200,17 @@ class RecordingBase(BaseModel):
 class RecordingCreate(RecordingBase):
     pass
 
+class RecordingInitRequest(BaseModel):
+    folder_id: Optional[str] = None
+    title: str
+    source_type: RecordingSourceType = RecordingSourceType.RECORDED
+
+class RecordingUploadCompleteRequest(BaseModel):
+    file_path: str
+    file_size_mb: float
+    duration_seconds: float
+    original_file_name: Optional[str] = None
+
 class RecordingUpdate(BaseModel):
     folder_id: Optional[str] = None
     title: Optional[str] = None
@@ -212,10 +224,21 @@ class RecordingUpdate(BaseModel):
     is_trashed: Optional[bool] = None
     auto_title: Optional[bool] = None
 
+class RecordingUserUpdate(BaseModel):
+    title: Optional[str] = None
+    folder_id: Optional[str] = None 
+    is_pinned: Optional[bool] = None
+
 class Recording(RecordingBase):
     recording_id: str
     created_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
+
+class RecordingDetail(Recording):
+    audio_url: Optional[str] = None
+    transcript_count: int = 0
+    summary_count: int = 0
+
 
 # ============================
 # TRANSCRIPTS

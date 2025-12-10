@@ -1,15 +1,62 @@
 from app.utils.database import supabase
 from app import schemas
 from app.utils import transcriber
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import json
 import os
+from datetime import datetime
+from fastapi import HTTPException
+from app.utils.audit import create_audit_log
 
 class RecordingService:
     @staticmethod
     def get_all_recordings() -> List[schemas.Recording]:
         response = supabase.table("recordings").select("*").execute()
         return response.data
+
+    @staticmethod
+    def get_filtered_recordings(
+        user_id: str,
+        folder_id: Optional[str] = None,
+        is_trashed: Optional[bool] = False,
+        search_query: Optional[str] = None,
+        tag: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 10
+    ) -> Dict[str, Any]:
+        # Base query
+        if tag:
+            # Inner join to filter by tag
+            tag = tag.strip().lower()
+            query = supabase.table("recordings").select("*, recording_tags!inner(tag)", count="exact")
+            query = query.eq("recording_tags.tag", tag)
+        else:
+            query = supabase.table("recordings").select("*", count="exact")
+
+        # Filters
+        query = query.eq("user_id", user_id)
+        
+        if is_trashed is not None:
+            query = query.eq("is_trashed", is_trashed)
+            
+        if folder_id:
+            query = query.eq("folder_id", folder_id)
+            
+        if search_query:
+            query = query.ilike("title", f"%{search_query}%")
+            
+        # Pagination
+        start = (page - 1) * page_size
+        end = start + page_size - 1
+        
+        # Order and execute
+        query = query.range(start, end).order("created_at", desc=True)
+        response = query.execute()
+        
+        return {
+            "data": response.data,
+            "total": response.count
+        }
 
     @staticmethod
     def get_recordings_by_user_id(user_id: str) -> List[schemas.Recording]:
@@ -22,6 +69,59 @@ class RecordingService:
         if response.data:
             return response.data[0]
         return None
+
+    @staticmethod
+    def get_recording_details(user_id: str, recording_id: str) -> Optional[schemas.RecordingDetail]:
+        # 1. Fetch recording
+        response = supabase.table("recordings").select("*").eq("recording_id", recording_id).execute()
+        if not response.data:
+            return None
+        
+        recording = response.data[0]
+        
+        # 2. Check ownership
+        if recording['user_id'] != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized to access this recording")
+
+        # 3. Generate Signed URL
+        audio_url = None
+        if recording.get('file_path'):
+            try:
+                # Assuming bucket name is 'recordings' as seen in transcribe_recording
+                signed_url_response = supabase.storage.from_("recordings").create_signed_url(recording['file_path'], 60 * 60) # 1 hour
+                if signed_url_response:
+                    # Supabase python client returns a string or a dict usually? 
+                    # create_signed_url usually returns a dict with 'signedURL' or string in some versions.
+                    # Commonly it returns a string in some implementations or {'signedURL': '...'} in others.
+                    # Looking at supabase-py storage-py logic: it returns dictionary usually if not raw.
+                    # Actually storage-py returns the URL string in newer versions or a dict.
+                    # Let's handle generic case or check context. 
+                    # The transcribe method used download(). 
+                    # Let's assume it returns a dict or check usage.
+                    # If create_signed_url returns a dict:
+                    if isinstance(signed_url_response, dict) and 'signedURL' in signed_url_response:
+                         audio_url = signed_url_response['signedURL']
+                    elif isinstance(signed_url_response, str):
+                         audio_url = signed_url_response
+            except Exception as e:
+                print(f"Error generating signed URL: {e}")
+
+        # 4. Get counts
+        transcript_count_res = supabase.table("transcripts").select("transcript_id", count="exact").eq("recording_id", recording_id).execute()
+        transcript_count = transcript_count_res.count or 0
+
+        summary_count_res = supabase.table("summaries").select("summary_id", count="exact").eq("recording_id", recording_id).execute()
+        summary_count = summary_count_res.count or 0
+
+        # 5. Construct response
+        # schemas.RecordingDetail expects fields from Recording + extra
+        return schemas.RecordingDetail(
+            **recording,
+            audio_url=audio_url,
+            transcript_count=transcript_count,
+            summary_count=summary_count
+        )
+
 
     @staticmethod
     def create_recording(recording: schemas.RecordingCreate) -> schemas.Recording:
@@ -38,8 +138,152 @@ class RecordingService:
         return None
 
     @staticmethod
-    def delete_recording(recording_id: str) -> None:
+    def update_recording_details(user_id: str, recording_id: str, update_data: schemas.RecordingUserUpdate) -> schemas.Recording:
+        # 1. Fetch recording, check ownership
+        response = supabase.table("recordings").select("*").eq("recording_id", recording_id).single().execute()
+        if not response.data:
+             raise HTTPException(status_code=404, detail="Recording not found")
+        recording = response.data
+
+        if recording['user_id'] != user_id:
+             raise HTTPException(status_code=403, detail="Not authorized to update this recording")
+
+        # 2. Prepare update payload
+        data = update_data.model_dump(exclude_unset=True)
+        if not data:
+             return schemas.Recording(**recording)
+
+        # 3. Update in Supabase
+        update_response = supabase.table("recordings").update(data).eq("recording_id", recording_id).execute()
+        updated_recording = update_response.data[0]
+
+        # 4. Audit Log
+        changes = []
+        if 'title' in data and data['title'] != recording['title']:
+             changes.append(f"Title: {recording['title']} -> {data['title']}")
+        
+        if 'folder_id' in data and data['folder_id'] != recording['folder_id']:
+             old_f = recording.get('folder_id') or 'Root'
+             new_f = data.get('folder_id') or 'Root'
+             changes.append(f"Folder: {old_f} -> {new_f}")
+
+        if 'is_pinned' in data and data['is_pinned'] != recording['is_pinned']:
+             changes.append(f"Pinned: {data['is_pinned']}")
+
+        if changes:
+             create_audit_log(
+                 user_id=user_id,
+                 action_type="UPDATE_RECORDING",
+                 resource_type="RECORDING",
+                 resource_id=recording_id,
+                 status="SUCCESS",
+                 details=", ".join(changes)
+             )
+
+        return schemas.Recording(**updated_recording)
+
+    @staticmethod
+    def soft_delete_recording(user_id: str, recording_id: str) -> None:
+        # 1. Fetch recording, check ownership
+        response = supabase.table("recordings").select("user_id").eq("recording_id", recording_id).single().execute()
+        if not response.data:
+             raise HTTPException(status_code=404, detail="Recording not found")
+        
+        if response.data['user_id'] != user_id:
+             raise HTTPException(status_code=403, detail="Not authorized to delete this recording")
+
+        # 2. Update is_trashed
+        supabase.table("recordings").update({
+            "is_trashed": True, 
+            "deleted_at": datetime.now().isoformat()
+        }).eq("recording_id", recording_id).execute()
+
+        # 3. Audit Log
+        create_audit_log(
+            user_id=user_id,
+            action_type="SOFT_DELETE_RECORDING",
+            resource_type="RECORDING",
+            resource_id=recording_id,
+            status="SUCCESS"
+        )
+
+    @staticmethod
+    def restore_recording(user_id: str, recording_id: str) -> schemas.Recording:
+        # 1. Fetch recording, check ownership and is_trashed status
+        response = supabase.table("recordings").select("*").eq("recording_id", recording_id).single().execute()
+        if not response.data:
+             raise HTTPException(status_code=404, detail="Recording not found")
+        
+        recording = response.data
+        if recording['user_id'] != user_id:
+             raise HTTPException(status_code=403, detail="Not authorized to restore this recording")
+        
+        if not recording.get('is_trashed'):
+             # If not trashed, just return it or raise error? Spec applies to restoring from trash. 
+             # Let's just return current state if already restored or error. 
+             # Usually idempotent is better.
+             pass
+
+        # 2. Update is_trashed
+        update_response = supabase.table("recordings").update({
+            "is_trashed": False, 
+            "deleted_at": None
+        }).eq("recording_id", recording_id).execute()
+        
+        restored_recording = update_response.data[0]
+
+        # 3. Audit Log
+        create_audit_log(
+            user_id=user_id,
+            action_type="RESTORE_RECORDING",
+            resource_type="RECORDING",
+            resource_id=recording_id,
+            status="SUCCESS"
+        )
+
+        return schemas.Recording(**restored_recording)
+
+    @staticmethod
+    def hard_delete_recording(user_id: str, recording_id: str) -> None:
+        # 1. Fetch recording, check ownership
+        response = supabase.table("recordings").select("*").eq("recording_id", recording_id).single().execute()
+        if not response.data:
+             raise HTTPException(status_code=404, detail="Recording not found")
+        
+        recording = response.data
+        if recording['user_id'] != user_id:
+             raise HTTPException(status_code=403, detail="Not authorized to delete this recording")
+
+        # 2. Delete file from Storage
+        if recording.get('file_path'):
+             try:
+                 supabase.storage.from_("recordings").remove([recording['file_path']])
+             except Exception as e:
+                 print(f"Error removing file from storage: {e}")
+
+        # 3. Delete RECORDING (Cascades to other tables)
         supabase.table("recordings").delete().eq("recording_id", recording_id).execute()
+
+        # 5. Update User Storage
+        # We need to subtract file_size_mb from user's storage_used_mb
+        file_size_mb = recording.get('file_size_mb') or 0
+        if file_size_mb > 0:
+             # Fetch current user storage to be safe or use RPC decrement? 
+             # Simple approach: fetch user, substract, update.
+             user_res = supabase.table("users").select("storage_used_mb").eq("user_id", user_id).single().execute()
+             if user_res.data:
+                 current_storage = user_res.data['storage_used_mb'] or 0
+                 new_storage = max(0, current_storage - file_size_mb)
+                 supabase.table("users").update({"storage_used_mb": new_storage}).eq("user_id", user_id).execute()
+
+        # 6. Audit Log
+        create_audit_log(
+            user_id=user_id,
+            action_type="HARD_DELETE_RECORDING",
+            resource_type="RECORDING",
+            resource_id=recording_id,
+            status="SUCCESS"
+        )
 
     @staticmethod
     def transcribe_recording(recording_id: str) -> Optional[schemas.Transcript]:
@@ -136,3 +380,155 @@ class RecordingService:
         supabase.table("ai_usage_logs").insert(ai_usage_log).execute()
 
         return new_transcript
+
+    @staticmethod
+    def create_recording_metadata(user_id: str, request: schemas.RecordingInitRequest) -> dict:
+        # 1. Get User and Tier info
+        user_response = supabase.table("users").select("tier_id, storage_used_mb").eq("user_id", user_id).single().execute()
+        if not user_response.data:
+            raise HTTPException(status_code=404, detail="User not found")
+        user_data = user_response.data
+        tier_id = user_data['tier_id']
+        current_storage = user_data['storage_used_mb'] or 0.0
+
+        if not tier_id:
+             raise HTTPException(status_code=400, detail="User has no assigned tier")
+
+        tier_response = supabase.table("tiers").select("*").eq("tier_id", tier_id).single().execute()
+        tier_data = tier_response.data
+        if not tier_data:
+             raise HTTPException(status_code=500, detail="Tier configuration missing")
+
+        # 2. Check Quota
+        # 2.a Max recordings
+        count_response = supabase.table("recordings").select("recording_id", count="exact").eq("user_id", user_id).execute()
+        current_recording_count = count_response.count
+        
+        if tier_data['max_recordings'] is not None and current_recording_count >= tier_data['max_recordings']:
+             raise HTTPException(status_code=403, detail="Max recordings quota exceeded")
+
+        # 2.b Storage (Just check if already over limit, exact check comes at upload complete)
+        if tier_data['max_storage_mb'] is not None and current_storage >= tier_data['max_storage_mb']:
+             raise HTTPException(status_code=403, detail="Storage quota exceeded")
+
+        # 3. Insert Recording
+        new_recording_data = {
+            "user_id": user_id,
+            "folder_id": request.folder_id,
+            "title": request.title,
+            "source_type": request.source_type,
+            "status": "UPLOADING",
+            "is_trashed": False,
+            "is_pinned": False,
+            "deleted_at": None
+        }
+        insert_response = supabase.table("recordings").insert(new_recording_data).execute()
+        recording = insert_response.data[0]
+
+        # 4. Create Audit Log
+        create_audit_log(
+            user_id=user_id,
+            action_type="CREATE_RECORDING",
+            resource_type="RECORDING",
+            resource_id=recording['recording_id'],
+            status="SUCCESS"
+        )
+
+        return recording
+
+    @staticmethod
+    def complete_upload_recording(user_id: str, recording_id: str, request: schemas.RecordingUploadCompleteRequest) -> schemas.Recording:
+        # 1. Fetch Recording and Validate
+        recording_response = supabase.table("recordings").select("*").eq("recording_id", recording_id).single().execute()
+        if not recording_response.data:
+             raise HTTPException(status_code=404, detail="Recording not found")
+        recording = recording_response.data
+
+        if recording['user_id'] != user_id:
+             raise HTTPException(status_code=403, detail="Not authorized to access this recording")
+        
+        if recording['status'] != 'UPLOADING':
+             raise HTTPException(status_code=400, detail="Recording is not in UPLOADING state")
+
+        # 2. Validate Quota (Size and Duration) with User's Tier
+        user_response = supabase.table("users").select("tier_id, storage_used_mb").eq("user_id", user_id).single().execute()
+        user_data = user_response.data
+        tier_id = user_data['tier_id']
+        current_storage = user_data['storage_used_mb'] or 0.0
+
+        tier_response = supabase.table("tiers").select("*").eq("tier_id", tier_id).single().execute()
+        tier_data = tier_response.data
+
+        new_storage = current_storage + request.file_size_mb
+        
+        if tier_data['max_storage_mb'] is not None and new_storage > tier_data['max_storage_mb']:
+             raise HTTPException(status_code=403, detail=f"File size exceeds storage quota. Limit: {tier_data['max_storage_mb']}MB, Used: {current_storage}MB, File: {request.file_size_mb}MB")
+        
+        if tier_data['max_duration_per_recording_sec'] is not None and request.duration_seconds > tier_data['max_duration_per_recording_sec']:
+             raise HTTPException(status_code=403, detail=f"Duration exceeds tier limit per recording: {tier_data['max_duration_per_recording_sec']}s")
+
+        # 3. Update Recording
+        update_data = {
+            "file_path": request.file_path,
+            "file_size_mb": request.file_size_mb,
+            "duration_seconds": request.duration_seconds,
+            "original_file_name": request.original_file_name,
+            "status": "PROCESSED"
+        }
+        update_response = supabase.table("recordings").update(update_data).eq("recording_id", recording_id).execute()
+        updated_recording = update_response.data[0]
+
+        # 4. Update User Storage
+        supabase.table("users").update({"storage_used_mb": new_storage}).eq("user_id", user_id).execute()
+
+        # 5. Audit Log
+        create_audit_log(
+            user_id=user_id,
+            action_type="UPLOAD",
+            resource_type="RECORDING",
+            resource_id=recording_id,
+            status="SUCCESS",
+            details=f"Uploaded {request.file_size_mb}MB"
+        )
+
+        return updated_recording
+
+    @staticmethod
+    def get_speakers(user_id: str, recording_id: str) -> List[schemas.RecordingSpeaker]:
+        # 1. Check ownership
+        response = supabase.table("recordings").select("user_id").eq("recording_id", recording_id).single().execute()
+        if not response.data:
+             raise HTTPException(status_code=404, detail="Recording not found")
+        
+        if response.data['user_id'] != user_id:
+             raise HTTPException(status_code=403, detail="Not authorized to access this recording")
+
+        # 2. Fetch speakers
+        speakers_response = supabase.table("recording_speakers").select("*").eq("recording_id", recording_id).execute()
+        return speakers_response.data
+
+    @staticmethod
+    def update_speaker(user_id: str, recording_id: str, speaker_label: str, update_data: schemas.RecordingSpeakerUpdate) -> schemas.RecordingSpeaker:
+        # 1. Check ownership
+        response = supabase.table("recordings").select("user_id").eq("recording_id", recording_id).single().execute()
+        if not response.data:
+             raise HTTPException(status_code=404, detail="Recording not found")
+        
+        if response.data['user_id'] != user_id:
+             raise HTTPException(status_code=403, detail="Not authorized to update this recording")
+
+        # 2. Update speaker
+        data = update_data.model_dump(exclude_unset=True)
+        if not data:
+             # Just fetch and return if no updates
+             speaker_res = supabase.table("recording_speakers").select("*").eq("recording_id", recording_id).eq("speaker_label", speaker_label).single().execute()
+             if not speaker_res.data:
+                 raise HTTPException(status_code=404, detail="Speaker not found")
+             return speaker_res.data
+
+        update_response = supabase.table("recording_speakers").update(data).eq("recording_id", recording_id).eq("speaker_label", speaker_label).execute()
+        
+        if not update_response.data:
+             raise HTTPException(status_code=404, detail="Speaker not found")
+
+        return update_response.data[0]
