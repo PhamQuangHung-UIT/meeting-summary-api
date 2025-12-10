@@ -4,23 +4,29 @@ from typing import List, Optional
 
 class RecordingTagService:
     @staticmethod
-    def get_all_recording_tags() -> List[schemas.RecordingTag]:
-        response = supabase.table("recording_tags").select("*").execute()
+    def get_tags_by_recording_id(recording_id: str) -> List[schemas.RecordingTag]:
+        response = supabase.table("recording_tags").select("*").eq("recording_id", recording_id).execute()
         return response.data
 
     @staticmethod
-    def get_recording_tag_by_id(id: str) -> Optional[schemas.RecordingTag]:
-        response = supabase.table("recording_tags").select("*").eq("id", id).execute()
-        if response.data:
-            return response.data[0]
-        return None
+    def add_tags(recording_id: str, tags: List[str]) -> List[schemas.RecordingTag]:
+        # Normalize tags
+        normalized_tags = {tag.strip().lower() for tag in tags}
+        
+        # Get existing tags to avoid duplicates
+        existing_res = supabase.table("recording_tags").select("tag").eq("recording_id", recording_id).execute()
+        existing_tags = {item['tag'] for item in existing_res.data}
+        
+        new_tags = normalized_tags - existing_tags
+        
+        if not new_tags:
+            return []
+
+        rows = [{"recording_id": recording_id, "tag": t} for t in new_tags]
+        response = supabase.table("recording_tags").insert(rows).execute()
+        return response.data
 
     @staticmethod
-    def create_recording_tag(tag: schemas.RecordingTagCreate) -> schemas.RecordingTag:
-        data = tag.model_dump(mode='json', exclude_unset=True)
-        response = supabase.table("recording_tags").insert(data).execute()
-        return response.data[0]
-
-    @staticmethod
-    def delete_recording_tag(id: str) -> None:
-        supabase.table("recording_tags").delete().eq("id", id).execute()
+    def delete_tag(recording_id: str, tag: str) -> None:
+        tag_normalized = tag.strip().lower()
+        supabase.table("recording_tags").delete().eq("recording_id", recording_id).eq("tag", tag_normalized).execute()

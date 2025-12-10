@@ -6,20 +6,12 @@ from app.services.export_job_service import ExportJobService
 
 router = APIRouter(prefix="/export_jobs", tags=["Export Jobs"])
 
-@router.get("/", response_model=List[schemas.ExportJob])
-def get_all_export_jobs():
-    return ExportJobService.get_all_export_jobs()
-
 @router.get("/{export_id}", response_model=schemas.ExportJob)
 def get_export_job(export_id: str):
     job = ExportJobService.get_export_job_by_id(export_id)
     if not job:
         raise HTTPException(status_code=404, detail="Export Job not found")
     return job
-
-@router.post("/", response_model=schemas.ExportJob, status_code=status.HTTP_201_CREATED)
-def create_export_job(job: schemas.ExportJobCreate):
-    return ExportJobService.create_export_job(job)
 
 @router.put("/{export_id}", response_model=schemas.ExportJob)
 def update_export_job(export_id: str, job: schemas.ExportJobUpdate):

@@ -1,7 +1,7 @@
 from app.utils.database import supabase
 from app import schemas
 from typing import List, Optional
-from app.services.audit_log_service import AuditLogService
+from app.utils.audit import create_audit_log
 
 class SummaryService:
     @staticmethod
@@ -123,16 +123,14 @@ class SummaryService:
             print(f"Error creating AI usage log: {e}")
 
         # 8. Log Audit
-        try:
-            audit_log = schemas.AuditLogCreate(
-                action_type="GENERATE_SUMMARY",
-                resource_type="SUMMARY",
-                resource_id=new_summary['summary_id'],
-                status=schemas.AuditStatus.SUCCESS,
-                details=f"Generated summary for recording {recording_id}"
-            )
-            AuditLogService.create_audit_log(audit_log)
-        except Exception as e:
-            print(f"Error creating audit log: {e}")
+        # 8. Log Audit
+        create_audit_log(
+            user_id=None, # generate_summary doesn't take user_id. The previous code didn't pass it either.
+            action_type="GENERATE_SUMMARY",
+            resource_type="SUMMARY",
+            resource_id=new_summary['summary_id'],
+            status="SUCCESS",
+            details=f"Generated summary for recording {recording_id}"
+        )
 
         return new_summary

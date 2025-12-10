@@ -1,7 +1,7 @@
 from app.utils.database import supabase
 from app import schemas
 from typing import List, Optional
-from app.services.audit_log_service import AuditLogService
+from app.utils.audit import create_audit_log
 
 class TierService:
     @staticmethod
@@ -28,17 +28,19 @@ class TierService:
         response = supabase.table("tiers").update(data).eq("tier_id", tier_id).execute()
         if response.data:
             # Audit Log
-            try:
-                audit_log = schemas.AuditLogCreate(
-                    action_type="UPDATE_TIER",
-                    resource_type="TIER",
-                    resource_id=str(tier_id),
-                    status=schemas.AuditStatus.SUCCESS,
-                    details=f"Updated tier {tier_id}"
-                )
-                AuditLogService.create_audit_log(audit_log)
-            except Exception as e:
-                print(f"Error creating audit log: {e}")
+            # Audit Log
+            create_audit_log(
+                user_id=None, # Tier updates are likely admin actions, but we might not have user_id here easily without passing it. 
+                              # Looking at the code, update_tier doesn't take user_id. 
+                              # The previous implementation didn't pass user_id either (it wasn't in AuditLogCreate args in the snippet).
+                              # Wait, AuditLogCreate likely has user_id optional. 
+                              # Let's check schemas.py to be sure what AuditLogCreate has, but based on usage it seems it wasn't passed.
+                action_type="UPDATE_TIER",
+                resource_type="TIER",
+                resource_id=str(tier_id),
+                status="SUCCESS",
+                details=f"Updated tier {tier_id}"
+            )
 
             return response.data[0]
         return None
