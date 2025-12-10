@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from typing import List
 from app.utils.database import supabase
 from pydantic import BaseModel
 
