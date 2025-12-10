@@ -4,8 +4,18 @@ from typing import List, Optional
 
 class MarkerService:
     @staticmethod
+    def get_all_markers() -> List[schemas.Marker]:
+        response = supabase.table("markers").select("*").order("created_at", desc=True).execute()
+        return response.data
+
+    @staticmethod
     def get_markers_by_recording_id(recording_id: str) -> List[schemas.Marker]:
-        response = supabase.table("markers").select("*").eq("recording_id", recording_id).execute()
+        """Get all markers for a specific recording, ordered by time"""
+        response = supabase.table("markers")\
+            .select("*")\
+            .eq("recording_id", recording_id)\
+            .order("time_seconds")\
+            .execute()
         return response.data
 
     @staticmethod

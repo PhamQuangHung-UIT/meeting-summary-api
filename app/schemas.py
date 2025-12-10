@@ -415,3 +415,9 @@ class RecordingTagCreate(RecordingTagBase):
 
 class RecordingTag(RecordingTagBase):
     id: str
+
+# ============================
+# EXPORT JOB DETAIL (with download URL)
+# ============================
+class ExportJobDetail(ExportJob):
+    download_url: Optional[str] = None
