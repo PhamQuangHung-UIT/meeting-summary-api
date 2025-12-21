@@ -106,7 +106,7 @@ class UserBase(BaseModel):
     role: Optional[UserRole] = UserRole.USER
     is_active: Optional[bool] = True
     storage_used_mb: Optional[float] = 0.0
-    email_verified: Optional[bool] = False
+    email_verified: Optional[bool] = True
 
 class UserCreate(UserBase):
     pass

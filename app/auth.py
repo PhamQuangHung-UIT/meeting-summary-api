@@ -70,10 +70,17 @@ def signup_user(request: UserSignupRequest):
     """Sign up a user with Supabase."""
     try:
         response = supabase.auth.sign_up({"email": request.email, "password": request.password})
-        if response:
-            # Create user profile in users table if needed
-            # Usually handled by Supabase Trigger, but we can do it here if not.
-            # For now, let's just return success.
+        if response and response.user:
+            # Create user profile in public.users table manually
+            user_data = {
+                "user_id": response.user.id,
+                "email": request.email,
+                "full_name": request.full_name,
+                "role": schemas.UserRole.USER,
+                "email_verified": True
+            }
+            supabase.table("users").insert(user_data).execute()
+            
             return {"status": "success", "user": response}
     except Exception as e:
          raise HTTPException(
