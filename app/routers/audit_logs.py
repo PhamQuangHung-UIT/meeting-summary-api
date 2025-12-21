@@ -1,9 +1,14 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List
 from app import schemas
 from app.services.audit_log_service import AuditLogService
+from app.auth import RoleChecker
 
-router = APIRouter(prefix="/audit-logs", tags=["Audit Logs"])
+router = APIRouter(
+    prefix="/audit-logs", 
+    tags=["Audit Logs"],
+    dependencies=[Depends(RoleChecker([schemas.UserRole.ADMIN]))]
+)
 
 @router.get("/", response_model=List[schemas.AuditLog])
 def get_all_audit_logs():

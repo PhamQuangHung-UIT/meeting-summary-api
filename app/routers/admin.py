@@ -1,10 +1,15 @@
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import APIRouter, HTTPException, status, Query, Depends
 from typing import List, Optional
 from app import schemas
 from app.services.user_service import UserService
 from app.services.tier_service import TierService
+from app.auth import RoleChecker
 
-router = APIRouter(prefix="/admin", tags=["Admin"])
+router = APIRouter(
+    prefix="/admin", 
+    tags=["Admin"],
+    dependencies=[Depends(RoleChecker([schemas.UserRole.ADMIN]))]
+)
 
 @router.get("/users", response_model=List[schemas.User])
 def get_admin_users(
