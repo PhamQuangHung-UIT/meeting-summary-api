@@ -52,7 +52,7 @@ def update_marker(marker_id: str, marker: schemas.MarkerUpdate, current_user: sc
         raise HTTPException(status_code=404, detail="Marker not found")
     
     # Verify ownership of the recording
-    recording = RecordingService.get_recording_details(current_user.user_id, existing_marker['recording_id'])
+    recording = RecordingService.get_recording_details(current_user.user_id, existing_marker.recording_id)
     if not recording:
         raise HTTPException(status_code=404, detail="Recording not found")
 
@@ -80,7 +80,7 @@ def delete_marker(marker_id: str, current_user: schemas.User = Depends(get_curre
         raise HTTPException(status_code=404, detail="Marker not found")
 
     # Verify ownership
-    recording = RecordingService.get_recording_details(current_user.user_id, existing_marker['recording_id'])
+    recording = RecordingService.get_recording_details(current_user.user_id, existing_marker.recording_id)
     if not recording:
         raise HTTPException(status_code=403, detail="Access denied")
 

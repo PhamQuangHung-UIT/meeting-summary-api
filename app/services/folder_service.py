@@ -18,7 +18,7 @@ class FolderService:
     def get_folder_by_id(folder_id: str, user_id: str) -> Optional[schemas.Folder]:
         response = supabase.table("folders").select("*").eq("folder_id", folder_id).eq("user_id", user_id).execute()
         if response.data:
-            return response.data[0]
+            return schemas.Folder(**response.data[0])
         return None
 
     @staticmethod

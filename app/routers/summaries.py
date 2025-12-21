@@ -20,7 +20,7 @@ def get_summary(summary_id: str, current_user: schemas.User = Depends(get_curren
         raise HTTPException(status_code=404, detail="Summary not found")
     
     # Verify ownership of the recording
-    recording = RecordingService.get_recording_details(current_user.user_id, summary['recording_id'])
+    recording = RecordingService.get_recording_details(current_user.user_id, summary.recording_id)
     if not recording:
          raise HTTPException(status_code=403, detail="Access denied")
          
@@ -42,7 +42,7 @@ def update_summary(summary_id: str, summary: schemas.SummaryUpdate, current_user
         raise HTTPException(status_code=404, detail="Summary not found")
         
     # Verify ownership
-    recording = RecordingService.get_recording_details(current_user.user_id, existing_summary['recording_id'])
+    recording = RecordingService.get_recording_details(current_user.user_id, existing_summary.recording_id)
     if not recording:
          raise HTTPException(status_code=403, detail="Access denied")
          
@@ -56,7 +56,7 @@ def delete_summary(summary_id: str, current_user: schemas.User = Depends(get_cur
         raise HTTPException(status_code=404, detail="Summary not found")
         
     # Verify ownership
-    recording = RecordingService.get_recording_details(current_user.user_id, existing_summary['recording_id'])
+    recording = RecordingService.get_recording_details(current_user.user_id, existing_summary.recording_id)
     if not recording:
          raise HTTPException(status_code=403, detail="Access denied")
          

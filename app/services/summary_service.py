@@ -13,7 +13,7 @@ class SummaryService:
     def get_summary_by_id(summary_id: str) -> Optional[schemas.Summary]:
         response = supabase.table("summaries").select("*").eq("summary_id", summary_id).execute()
         if response.data:
-            return response.data[0]
+            return schemas.Summary(**response.data[0])
         return None
 
     @staticmethod
@@ -42,7 +42,7 @@ class SummaryService:
         if not existing_summary:
             return None
         
-        recording_id = existing_summary['recording_id']
+        recording_id = existing_summary.recording_id
         
         # 2. Handle is_latest logic
         if summary.is_latest:

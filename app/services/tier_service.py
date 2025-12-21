@@ -13,7 +13,7 @@ class TierService:
     def get_tier_by_id(tier_id: int) -> Optional[schemas.Tier]:
         response = supabase.table("tiers").select("*").eq("tier_id", tier_id).execute()
         if response.data:
-            return response.data[0]
+            return schemas.Tier(**response.data[0])
         return None
 
     @staticmethod

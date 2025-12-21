@@ -22,7 +22,7 @@ class MarkerService:
     def get_marker_by_id(marker_id: str) -> Optional[schemas.Marker]:
         response = supabase.table("markers").select("*").eq("marker_id", marker_id).execute()
         if response.data:
-            return response.data[0]
+            return schemas.Marker(**response.data[0])
         return None
 
     @staticmethod

@@ -20,7 +20,7 @@ def get_transcript(transcript_id: str, current_user: schemas.User = Depends(get_
         raise HTTPException(status_code=404, detail="Transcript not found")
         
     # Verify ownership
-    recording = RecordingService.get_recording_details(current_user.user_id, transcript['recording_id'])
+    recording = RecordingService.get_recording_details(current_user.user_id, transcript.recording_id)
     if not recording:
          raise HTTPException(status_code=403, detail="Access denied")
          
@@ -42,7 +42,7 @@ def update_transcript(transcript_id: str, transcript: schemas.TranscriptUpdate, 
         raise HTTPException(status_code=404, detail="Transcript not found")
         
     # Verify ownership
-    recording = RecordingService.get_recording_details(current_user.user_id, existing_transcript['recording_id'])
+    recording = RecordingService.get_recording_details(current_user.user_id, existing_transcript.recording_id)
     if not recording:
          raise HTTPException(status_code=403, detail="Access denied")
          
@@ -56,7 +56,7 @@ def delete_transcript(transcript_id: str, current_user: schemas.User = Depends(g
         raise HTTPException(status_code=404, detail="Transcript not found")
         
     # Verify ownership
-    recording = RecordingService.get_recording_details(current_user.user_id, existing_transcript['recording_id'])
+    recording = RecordingService.get_recording_details(current_user.user_id, existing_transcript.recording_id)
     if not recording:
          raise HTTPException(status_code=403, detail="Access denied")
          

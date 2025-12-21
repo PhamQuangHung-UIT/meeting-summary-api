@@ -25,7 +25,7 @@ class UserService:
     def get_user_by_id(user_id: str) -> Optional[schemas.User]:
         response = supabase.table("users").select("*").eq("user_id", user_id).execute()
         if response.data:
-            return response.data[0]
+            return schemas.User(**response.data[0])
         return None
 
     @staticmethod

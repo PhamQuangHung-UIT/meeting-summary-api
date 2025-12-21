@@ -67,7 +67,7 @@ class RecordingService:
     def get_recording_by_id(recording_id: str) -> Optional[schemas.Recording]:
         response = supabase.table("recordings").select("*").eq("recording_id", recording_id).execute()
         if response.data:
-            return response.data[0]
+            return schemas.Recording(**response.data[0])
         return None
 
     @staticmethod
