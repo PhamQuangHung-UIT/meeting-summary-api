@@ -187,9 +187,9 @@ class RecordingBase(BaseModel):
     user_id: str
     folder_id: Optional[str] = None
     title: str
-    file_path: str
-    duration_seconds: float
-    file_size_mb: float
+    file_path: Optional[str] = None
+    duration_seconds: Optional[float] = None
+    file_size_mb: Optional[float] = None
     source_type: RecordingSourceType
     original_file_name: Optional[str] = None
     status: Optional[RecordingStatus] = RecordingStatus.UPLOADING

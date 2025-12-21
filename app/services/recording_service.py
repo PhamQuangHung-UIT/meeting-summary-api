@@ -399,33 +399,49 @@ class RecordingService:
         if not tier_data:
              raise HTTPException(status_code=500, detail="Tier configuration missing")
 
-        # 2. Check Quota
-        # 2.a Max recordings
+        # 2. Check Folder (if provided)
+        if request.folder_id:
+            folder_res = supabase.table("folders").select("user_id").eq("folder_id", request.folder_id).execute()
+            if not folder_res.data:
+                raise HTTPException(status_code=404, detail="Folder not found")
+            if folder_res.data[0]['user_id'] != user_id:
+                raise HTTPException(status_code=403, detail="Not authorized to use this folder")
+
+        # 3. Check Quota
+        # 3.a Max recordings
         count_response = supabase.table("recordings").select("recording_id", count="exact").eq("user_id", user_id).execute()
-        current_recording_count = count_response.count
+        current_recording_count = count_response.count if count_response.count is not None else 0
         
         if tier_data['max_recordings'] is not None and current_recording_count >= tier_data['max_recordings']:
              raise HTTPException(status_code=403, detail="Max recordings quota exceeded")
 
-        # 2.b Storage (Just check if already over limit, exact check comes at upload complete)
+        # 3.b Storage (Just check if already over limit, exact check comes at upload complete)
         if tier_data['max_storage_mb'] is not None and current_storage >= tier_data['max_storage_mb']:
              raise HTTPException(status_code=403, detail="Storage quota exceeded")
 
-        # 3. Insert Recording
+        # 4. Insert Recording
         new_recording_data = {
             "user_id": user_id,
             "folder_id": request.folder_id,
             "title": request.title,
-            "source_type": request.source_type,
+            "source_type": request.source_type.value if hasattr(request.source_type, 'value') else request.source_type,
             "status": "UPLOADING",
             "is_trashed": False,
             "is_pinned": False,
             "deleted_at": None
         }
-        insert_response = supabase.table("recordings").insert(new_recording_data).execute()
-        recording = insert_response.data[0]
+        
+        try:
+            insert_response = supabase.table("recordings").insert(new_recording_data).execute()
+            if not insert_response.data:
+                raise HTTPException(status_code=500, detail="Failed to create recording record")
+            recording = insert_response.data[0]
+        except Exception as e:
+            if "foreign key constraint" in str(e).lower():
+                 raise HTTPException(status_code=404, detail="Referenced record not found (check folder_id)")
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-        # 4. Create Audit Log
+        # 5. Create Audit Log
         create_audit_log(
             user_id=user_id,
             action_type="CREATE_RECORDING",
