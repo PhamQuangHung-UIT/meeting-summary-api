@@ -14,7 +14,7 @@ class TranscriptSegmentService:
         data = segment.model_dump(mode='json', exclude_unset=True)
         data["transcript_id"] = transcript_id
         response = supabase.table("transcript_segments").insert(data).execute()
-        return response.data[0]
+        return schemas.TranscriptSegment(**response.data[0])
 
     @staticmethod
     def update_transcript_segment(transcript_id: str, segment_id: int, segment: schemas.TranscriptSegmentUpdate) -> Optional[schemas.TranscriptSegment]:
@@ -33,7 +33,7 @@ class TranscriptSegmentService:
                 details=f"Updated segment {segment_id} in transcript {transcript_id}"
             )
 
-            return response.data[0]
+            return schemas.TranscriptSegment(**response.data[0])
         return None
 
     @staticmethod

@@ -22,7 +22,7 @@ class RecordingTagService:
     def get_recording_tag_by_id(id: str) -> Optional[schemas.RecordingTag]:
         response = supabase.table("recording_tags").select("*").eq("id", id).execute()
         if response.data:
-            return response.data[0]
+            return schemas.RecordingTag(**response.data[0])
         return None
 
     @staticmethod
@@ -67,11 +67,11 @@ class RecordingTagService:
             .execute()
 
         if existing.data:
-            return existing.data[0]
+            return schemas.RecordingTag(**existing.data[0])
 
         data = {"recording_id": tag.recording_id, "tag": normalized_tag}
         response = supabase.table("recording_tags").insert(data).execute()
-        return response.data[0]
+        return schemas.RecordingTag(**response.data[0])
 
     @staticmethod
     def delete_tag_from_recording(recording_id: str, tag: str) -> bool:

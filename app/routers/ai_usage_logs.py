@@ -24,7 +24,7 @@ def get_ai_usage_log(usage_id: int, current_user: schemas.User = Depends(get_cur
         raise HTTPException(status_code=404, detail="AI Usage Log not found")
     
     # Ownership check
-    if current_user.role != schemas.UserRole.ADMIN and log['user_id'] != current_user.user_id:
+    if current_user.role != schemas.UserRole.ADMIN and log.user_id != current_user.user_id:
         raise HTTPException(status_code=403, detail="Access denied")
         
     return log

@@ -33,7 +33,7 @@ def create_export_job(recording_id: str, request: ExportRequest, background_task
         )
 
     # Check if recording is processed
-    if recording['status'] != 'PROCESSED':
+    if recording.status != 'PROCESSED':
         raise HTTPException(
             status_code=400,
             detail="Recording must be in PROCESSED status to export"
@@ -60,7 +60,7 @@ def create_export_job(recording_id: str, request: ExportRequest, background_task
 
     # Create export job
     job_data = schemas.ExportJobCreate(
-        user_id=recording['user_id'],
+        user_id=recording.user_id,
         recording_id=recording_id,
         export_type=request.export_type,
         status=schemas.ExportStatus.PENDING
@@ -71,7 +71,7 @@ def create_export_job(recording_id: str, request: ExportRequest, background_task
     # Add background task to process export
     background_tasks.add_task(
         ExportJobService.process_export_job,
-        job['export_id']
+        job.export_id
     )
 
     return job
@@ -97,13 +97,13 @@ def get_export_job(export_id: str):
 
     # If job is done, get signed URL for download
     download_url = None
-    if job['status'] == 'DONE' and job['file_path']:
-        download_url = ExportJobService.get_download_url(job['file_path'])
+    if job.status == 'DONE' and job.file_path:
+        download_url = ExportJobService.get_download_url(job.file_path)
 
-    return {
-        **job,
-        "download_url": download_url
-    }
+    return schemas.ExportJobDetail(
+        **job.model_dump(),
+        download_url=download_url
+    )
 
 
 @router.get("/export-jobs", response_model=List[schemas.ExportJob], tags=["Export Jobs"])
@@ -120,7 +120,7 @@ def delete_export_job(export_id: str):
         raise HTTPException(status_code=404, detail="Export Job not found")
 
     # Delete file from storage if exists
-    if job['file_path']:
+    if job.file_path:
         try:
             ExportJobService.delete_export_file(job['file_path'])
         except Exception as e:

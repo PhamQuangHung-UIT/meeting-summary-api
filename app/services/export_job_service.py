@@ -31,7 +31,7 @@ class ExportJobService:
             .eq("export_id", export_id) \
             .execute()
         if response.data:
-            return response.data[0]
+            return schemas.ExportJob(**response.data[0])
         return None
 
     @staticmethod
@@ -52,7 +52,7 @@ class ExportJobService:
             "status": "PENDING"
         }
         response = supabase.table("export_jobs").insert(new_job).execute()
-        return response.data[0]
+        return schemas.ExportJob(**response.data[0])
 
     # update and delete can remain valid for internal/admin use or if user cancels.
     @staticmethod
@@ -63,7 +63,7 @@ class ExportJobService:
             .eq("export_id", export_id) \
             .execute()
         if response.data:
-            return response.data[0]
+            return schemas.ExportJob(**response.data[0])
         return None
 
     @staticmethod

@@ -12,14 +12,14 @@ class AiUsageLogService:
     def get_ai_usage_log_by_id(usage_id: int) -> Optional[schemas.AiUsageLog]:
         response = supabase.table("ai_usage_logs").select("*").eq("usage_id", usage_id).execute()
         if response.data:
-            return response.data[0]
+            return schemas.AiUsageLog(**response.data[0])
         return None
 
     @staticmethod
     def create_ai_usage_log(log: schemas.AiUsageLogCreate) -> schemas.AiUsageLog:
         data = log.model_dump(mode='json', exclude_unset=True)
         response = supabase.table("ai_usage_logs").insert(data).execute()
-        return response.data[0]
+        return schemas.AiUsageLog(**response.data[0])
 
     @staticmethod
     def delete_ai_usage_log(usage_id: int) -> None:
