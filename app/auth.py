@@ -22,7 +22,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             # For now, let's assume they must exist in the users table.
             raise HTTPException(status_code=401, detail="User profile not found")
         
-        return schemas.User(**user)
+        return user
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
