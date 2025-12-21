@@ -54,7 +54,8 @@ def generate_summary_gemini(transcript_text: str, summary_style: str = "MEETING"
                         }
                     },
                     "required": ["overview", "key_points", "action_items"]
-                }
+                },
+                thinking_config=types.ThinkingConfig(thinking_budget=0)
             )
         )
         

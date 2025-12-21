@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Depends, Response
+from fastapi import APIRouter, HTTPException, status, Depends, Response, BackgroundTasks
 from typing import List, Optional
 
 from app import schemas
@@ -80,21 +80,15 @@ def hard_delete_recording(recording_id: str, current_user: schemas.User = Depend
     RecordingService.hard_delete_recording(current_user.user_id, recording_id)
     return None
 
-@router.post("/{recording_id}/transcribe", response_model=schemas.Transcript)
-def transcribe_recording(recording_id: str, current_user: schemas.User = Depends(get_current_user)):
+@router.post("/{recording_id}/transcribe", status_code=status.HTTP_202_ACCEPTED)
+def transcribe_recording(recording_id: str, background_tasks: BackgroundTasks, current_user: schemas.User = Depends(get_current_user)):
     # Verify ownership
     RecordingService.get_recording_details(current_user.user_id, recording_id)
-    try:
-        transcript = RecordingService.transcribe_recording(recording_id)
-        if not transcript:
-             raise HTTPException(status_code=404, detail="Recording not found")
-        return transcript
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    
+    # Add to background tasks
+    background_tasks.add_task(RecordingService.transcribe_recording, recording_id)
+    
+    return {"message": "Transcription started in background"}
 
 @router.get("/{recording_id}/transcripts", response_model=List[schemas.Transcript])
 def get_recording_transcripts(recording_id: str, latest: bool = False, current_user: schemas.User = Depends(get_current_user)):
@@ -102,16 +96,15 @@ def get_recording_transcripts(recording_id: str, latest: bool = False, current_u
     RecordingService.get_recording_details(current_user.user_id, recording_id)
     return TranscriptService.get_transcripts_by_recording_id(recording_id, latest)
 
-@router.post("/{recording_id}/summarize", response_model=schemas.Summary)
-def generate_summary(recording_id: str, request: schemas.SummaryRequest, current_user: schemas.User = Depends(get_current_user)):
+@router.post("/{recording_id}/summarize", status_code=status.HTTP_202_ACCEPTED)
+def generate_summary(recording_id: str, request: schemas.SummaryRequest, background_tasks: BackgroundTasks, current_user: schemas.User = Depends(get_current_user)):
     # Verify ownership
     RecordingService.get_recording_details(current_user.user_id, recording_id)
-    try:
-        return SummaryService.generate_summary(recording_id, request.summary_style)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    
+    # Add to background tasks
+    background_tasks.add_task(SummaryService.generate_summary, recording_id, request.summary_style)
+    
+    return {"message": "Summary generation started in background"}
 
 @router.get("/{recording_id}/summaries", response_model=List[schemas.Summary])
 def get_recording_summaries(recording_id: str, latest: bool = False, current_user: schemas.User = Depends(get_current_user)):
