@@ -69,10 +69,12 @@ def create_export_job(recording_id: str, request: ExportRequest, background_task
     job = ExportJobService.create_export_job(job_data)
 
     # Add background task to process export
-    background_tasks.add_task(
-        ExportJobService.process_export_job,
-        job.export_id
-    )
+    # DEBUG: Run synchronously to catch errors
+    # background_tasks.add_task(
+    #     ExportJobService.process_export_job,
+    #     job.export_id
+    # )
+    ExportJobService.process_export_job(job.export_id)
 
     return job
 
