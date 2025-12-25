@@ -46,7 +46,7 @@ def update_transcript(transcript_id: str, transcript: schemas.TranscriptUpdate, 
     if not recording:
          raise HTTPException(status_code=403, detail="Access denied")
          
-    updated_transcript = TranscriptService.update_transcript(transcript_id, transcript)
+    updated_transcript = TranscriptService.update_transcript(current_user.user_id, transcript_id, transcript)
     return updated_transcript
 
 @router.delete("/{transcript_id}", status_code=status.HTTP_204_NO_CONTENT)

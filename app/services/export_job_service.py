@@ -104,20 +104,26 @@ class ExportJobService:
         from app.utils.export_processor import ExportProcessor
 
         try:
+            print(f"!!! STARTING EXPORT JOB {export_id} !!!")
             # Update status to PROCESSING
             ExportJobService.update_export_job(
                 export_id,
                 schemas.ExportJobUpdate(status=schemas.ExportStatus.PROCESSING)
             )
+            print(f"!!! STATUS UPDATED TO PROCESSING {export_id} !!!")
 
             # Get job details
             job = ExportJobService.get_export_job_by_id(export_id)
             if not job:
+                print(f"!!! JOB NOT FOUND {export_id} !!!")
                 return
 
             # Process export based on type
+            print(f"!!! INITIALIZING PROCESSOR FOR {export_id} !!!")
             processor = ExportProcessor(job)
+            print(f"!!! PROCESSING START {export_id} !!!")
             file_path = processor.process()
+            print(f"!!! PROCESSING COMPLETE. FILE: {file_path} !!!")
 
             # Update job with result
             ExportJobService.update_export_job(
@@ -128,9 +134,12 @@ class ExportJobService:
                     completed_at=datetime.utcnow()
                 )
             )
+            print(f"!!! JOB DONE {export_id} !!!")
 
         except Exception as e:
-            print(f"Error processing export job {export_id}: {e}")
+            print(f"!!! EXPORT ERROR {export_id}: {e} !!!")
+            import traceback
+            traceback.print_exc()
             # Update status to FAILED
             ExportJobService.update_export_job(
                 export_id,
